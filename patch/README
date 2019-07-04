@@ -9,7 +9,7 @@
 
   Below is a list of the patchs.  
   
-  Each patch is against the vanilla nginx-1.14.1 vanilla.  Said
+  Each patch is against the vanilla nginx-1.14.1 source.  Said
   differently, the patches are not incremental.   (I could have made one
   giant patch, but separating into individual patches makes the
   patch's intent clear (most patchs affect a single file), and
@@ -37,10 +37,10 @@
         protocol (e.g., HTTP vs HTTPS).  In order to do this, NGINX uses
         the MSG_PEEK flag to recv to read a byte but not remove the byte
         from the socket's buffer (so that a subsequent recv will also
-        read the byte).  Graphene-SGX does not implement the MSG_PEEK.
-        Since our use-case and benchmarks for Phoenix use TLS, this
-        patch fakes the MSG_PEEK recv by hardcoding the read byte to
-        indicate that the request is over TLS.
+        read the byte).  Graphene-SGX does not implement the
+        MSG_PEEK flag.  Since our use-case and benchmarks for Phoenix
+        use TLS, this patch fakes the MSG_PEEK recv by hardcoding the
+        read byte to indicate that the request is over TLS.
 
     - nginx-1.14.1-no-atomics.patch
 
@@ -55,15 +55,14 @@
         Depends on: 
             nginx-1.14.1-no-atomics.patch  
             
-        NGINX creates a lock file for the accept_mutex (see the the
-        same-named NGINX directive), as well as a shared
-        memory region for statistics (e.g., number of requests
-        served).  Neither of these two things are used by
-        default, but they are created.  This patch ensures that they
-        are created via Phoenix's memservers, as long as the NGINX
-        lock_file directive is set to the value '/', and the
-        Graphene mounts at least one Phoenix memory server on
-        /memserver0.
+        NGINX creates a lock file for the accept_mutex (see the
+        same-named NGINX directive for details), as well as a
+        shared memory region for statistics (e.g., number of requests
+        served).  Neither of these two objects are used by
+        default, but they are created.  This patch ensures that they are
+        created via Phoenix's memservers, as long as the NGINX lock_file
+        directive is set to the value '/', and Graphene mounts at least
+        one Phoenix memory server on /memserver0.
 
     - nginx-1.14.1-memserver-http-cache.patch
     
@@ -104,12 +103,15 @@
             NGX_HAVE_GCC_ATOMIC
             NGX_HAVE_POSIX_SEM
 
-        to zero.  It's quite possible that this patch is not needed,
-        as setting NGX_HAVE_GGC_ATOMIC to zero is a bit of a
-        safeguard to catch any uses of atomic operations that the
+        to zero.  It's quite possible that this patch is not needed, as
+        setting NGX_HAVE_GGC_ATOMIC to zero is a bit of a safeguard to
+        catch any uses of atomic operations that the
         nginx-1.14.1-no-atomics.patch did not catch, and setting
         NGX_HAVE_POSIX_SEM similarly catches any cases where a semaphore
-        is being used instead of, say, a lock file.  Another issue is
-        that this patch addresses is that these atomics also define the
-        ABI for add-on modules, which is potentially important when
-        using extensions, such as modsecurity.
+        is being used instead of a lock file.  
+        
+        Another more important issue this patch addresses is that these
+        macro values also define the ABI for add-on modules, which is
+        potentially important when using extensions, such as
+        modsecurity.
+
