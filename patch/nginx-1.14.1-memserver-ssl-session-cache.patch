@@ -1,0 +1,50 @@
+diff -ruN nginx-1.14.1/src/event/ngx_event_openssl.c nginx-1.14.1-memserver-ssl-session-cache/src/event/ngx_event_openssl.c
+--- nginx-1.14.1/src/event/ngx_event_openssl.c	2018-11-06 08:52:46.000000000 -0500
++++ nginx-1.14.1-memserver-ssl-session-cache/src/event/ngx_event_openssl.c	2019-07-04 10:58:51.639010664 -0400
+@@ -2377,6 +2377,14 @@
+ }
+ 
+ 
++/*
++ * Graphene-SGX:
++ *  The issue is that a shared memory region is being initialized,
++ *  and in order to make sure the initialization syncs back to
++ *  the canonical shared memory replica (e.g., as held by a memserver),
++ *  we need to wrap the initialization in a lock and unlock of the
++ *  associated lock file.
++ */
+ ngx_int_t
+ ngx_ssl_session_cache_init(ngx_shm_zone_t *shm_zone, void *data)
+ {
+@@ -2396,8 +2404,10 @@
+         return NGX_OK;
+     }
+ 
+-    cache = ngx_slab_alloc(shpool, sizeof(ngx_ssl_session_cache_t));
++    ngx_shmtx_lock(&shpool->mutex);
++    cache = ngx_slab_alloc_locked(shpool, sizeof(ngx_ssl_session_cache_t));
+     if (cache == NULL) {
++        ngx_shmtx_unlock(&shpool->mutex);
+         return NGX_ERROR;
+     }
+ 
+@@ -2411,8 +2421,9 @@
+ 
+     len = sizeof(" in SSL session shared cache \"\"") + shm_zone->shm.name.len;
+ 
+-    shpool->log_ctx = ngx_slab_alloc(shpool, len);
++    shpool->log_ctx = ngx_slab_alloc_locked(shpool, len);
+     if (shpool->log_ctx == NULL) {
++        ngx_shmtx_unlock(&shpool->mutex);
+         return NGX_ERROR;
+     }
+ 
+@@ -2421,6 +2432,8 @@
+ 
+     shpool->log_nomem = 0;
+ 
++    ngx_shmtx_unlock(&shpool->mutex);
++
+     return NGX_OK;
+ }
+ 

@@ -1,0 +1,243 @@
+diff -ruN nginx-1.14.1/src/core/nginx.c nginx-1.14.1-memserver/src/core/nginx.c
+--- nginx-1.14.1/src/core/nginx.c	2018-11-06 08:52:46.000000000 -0500
++++ nginx-1.14.1-memserver/src/core/nginx.c	2019-07-02 13:34:22.108816768 -0400
+@@ -1139,6 +1139,44 @@
+ 
+     lock_file = cycle->old_cycle->lock_file;
+ 
++    /*
++     * Graphene-SGX:
++     *
++     * This if/else statement sets the name of the accept mutex (see the
++     * accept_mutex directive (main context) for more information),
++     * as well as the prefix for the names of all other shared mutexes
++     * (i.e., lock files).  
++     *
++     * In the NGINX configuration, you can set a prefix name for mutexes using
++     * the `lock_file' directive in the main context.  For instance,
++     *
++     *  lock_file   '/tmp/';
++     *
++     * Such a directive would then, previously, cause the the accept mutex to
++     * be named "/tmp/.accept", as well as make the prefix for all other locks
++     * "/tmp/." (notice the trailing dot).
++     *
++     * Now, the accept mutex is not used by default, but it is created, and
++     * thus we have to ensure that it is created on the memserver.  To that end,
++     * we use the nginx.conf convention of specifying:
++     *  
++     *  lockfile '/';
++     *
++     * and the convention that Graphene mounts the memservers on mount
++     * points named:
++     *
++     *  /memserver0/
++     *  /memserver1/
++     *
++     * and so forth.  (Mounting multiple memservers is useful in the case where
++     * NGINX is virtual hosting (i.e., has separate server blocks) for
++     * multiple websites, and each website has their own memserver).
++     *
++     * This change, with our configuration conventions, therefore causes the
++     * accept mutex to be named /memserver0/.accept, and keeps the prefix of
++     * lock files as '/'.
++     */
++
+     if (lock_file.len) {
+         lock_file.len--;
+ 
+@@ -1150,8 +1188,8 @@
+                           "\"lock_file\" could not be changed, ignored");
+         }
+ 
+-        cycle->lock_file.len = lock_file.len + 1;
+-        lock_file.len += sizeof(".accept");
++        cycle->lock_file.len = lock_file.len;
++        lock_file.len += sizeof("memserver0/.accept");
+ 
+         cycle->lock_file.data = ngx_pstrdup(cycle->pool, &lock_file);
+         if (cycle->lock_file.data == NULL) {
+@@ -1159,16 +1197,16 @@
+         }
+ 
+     } else {
+-        cycle->lock_file.len = ccf->lock_file.len + 1;
++        cycle->lock_file.len = ccf->lock_file.len;
+         cycle->lock_file.data = ngx_pnalloc(cycle->pool,
+-                                      ccf->lock_file.len + sizeof(".accept"));
++                                      ccf->lock_file.len + sizeof("memserver0/.accept"));
+         if (cycle->lock_file.data == NULL) {
+             return NGX_CONF_ERROR;
+         }
+ 
+         ngx_memcpy(ngx_cpymem(cycle->lock_file.data, ccf->lock_file.data,
+                               ccf->lock_file.len),
+-                   ".accept", sizeof(".accept"));
++                   "memserver0/.accept", sizeof("memserver0/.accept"));
+     }
+     }
+ 
+diff -ruN nginx-1.14.1/src/event/ngx_event.c nginx-1.14.1-memserver/src/event/ngx_event.c
+--- nginx-1.14.1/src/event/ngx_event.c	2018-11-06 08:52:46.000000000 -0500
++++ nginx-1.14.1-memserver/src/event/ngx_event.c	2019-07-02 13:34:54.053231383 -0400
+@@ -500,7 +500,7 @@
+ #endif
+ 
+     shm.size = size;
+-    ngx_str_set(&shm.name, "nginx_shared_zone");
++    ngx_str_set(&shm.name, "/memserver0/nginx_shared_zone");
+     shm.log = cycle->log;
+ 
+     if (ngx_shm_alloc(&shm) != NGX_OK) {
+diff -ruN nginx-1.14.1/src/os/unix/ngx_shmem.c nginx-1.14.1-memserver/src/os/unix/ngx_shmem.c
+--- nginx-1.14.1/src/os/unix/ngx_shmem.c	2018-11-06 08:52:46.000000000 -0500
++++ nginx-1.14.1-memserver/src/os/unix/ngx_shmem.c	2019-07-02 13:44:13.340488930 -0400
+@@ -8,47 +8,50 @@
+ #include <ngx_config.h>
+ #include <ngx_core.h>
+ 
+-
+-#if (NGX_HAVE_MAP_ANON)
+-
+-ngx_int_t
+-ngx_shm_alloc(ngx_shm_t *shm)
+-{
+-    shm->addr = (u_char *) mmap(NULL, shm->size,
+-                                PROT_READ|PROT_WRITE,
+-                                MAP_ANON|MAP_SHARED, -1, 0);
+-
+-    if (shm->addr == MAP_FAILED) {
+-        ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno,
+-                      "mmap(MAP_ANON|MAP_SHARED, %uz) failed", shm->size);
+-        return NGX_ERROR;
+-    }
+-
+-    return NGX_OK;
+-}
+-
+-
+-void
+-ngx_shm_free(ngx_shm_t *shm)
+-{
+-    if (munmap((void *) shm->addr, shm->size) == -1) {
+-        ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno,
+-                      "munmap(%p, %uz) failed", shm->addr, shm->size);
+-    }
+-}
+-
+-#elif (NGX_HAVE_MAP_DEVZERO)
++/*
++ * Graphene-SGX:
++ *
++ * We use the convention in nginx.conf of specifying shared memory zones
++ * with the names like:
++ *  
++ *  memserver0/ZONE0_NAME
++ *  memserver1/ZONE1_NAME
++ *
++ * and so forth, and specifying 
++ *
++ *
++ *  lock_file '/';
++ *
++ * This causes the file locks associated with the shared memory zones to
++ * be named
++ *
++ *  /memserver0/ZONE0_NAME
++ *  /memserver1/ZONE1_NAME
++ *
++ * and so forth.
++ *
++ * However, we also need to ensure a share memory zone has the same name as
++ * its associated lock file.  To do this, we modify the /dev/zero variant of
++ * ngx_shm_alloc to append a '/' to the name of the shared memory zone 
++ * before opening the resultant path and mmap'ing the resultant fd.
++ */
+ 
+ ngx_int_t
+ ngx_shm_alloc(ngx_shm_t *shm)
+ {
+     ngx_fd_t  fd;
++    char path[256] = { '/' };
++
++    if (shm->name.data[0] == '/')
++        memcpy(path, shm->name.data, shm->name.len);
++    else
++        memcpy(path + 1, shm->name.data, shm->name.len);
+ 
+-    fd = open("/dev/zero", O_RDWR);
++    fd = open(path, O_RDWR);
+ 
+     if (fd == -1) {
+         ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno,
+-                      "open(\"/dev/zero\") failed");
++                      "open(\"%s\") failed", path);
+         return NGX_ERROR;
+     }
+ 
+@@ -57,12 +60,12 @@
+ 
+     if (shm->addr == MAP_FAILED) {
+         ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno,
+-                      "mmap(/dev/zero, MAP_SHARED, %uz) failed", shm->size);
++                      "mmap(\"%s\", MAP_SHARED, %uz) failed", path, shm->size);
+     }
+ 
+     if (close(fd) == -1) {
+         ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno,
+-                      "close(\"/dev/zero\") failed");
++                      "close(\"%s\") failed", path);
+     }
+ 
+     return (shm->addr == MAP_FAILED) ? NGX_ERROR : NGX_OK;
+@@ -77,50 +80,3 @@
+                       "munmap(%p, %uz) failed", shm->addr, shm->size);
+     }
+ }
+-
+-#elif (NGX_HAVE_SYSVSHM)
+-
+-#include <sys/ipc.h>
+-#include <sys/shm.h>
+-
+-
+-ngx_int_t
+-ngx_shm_alloc(ngx_shm_t *shm)
+-{
+-    int  id;
+-
+-    id = shmget(IPC_PRIVATE, shm->size, (SHM_R|SHM_W|IPC_CREAT));
+-
+-    if (id == -1) {
+-        ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno,
+-                      "shmget(%uz) failed", shm->size);
+-        return NGX_ERROR;
+-    }
+-
+-    ngx_log_debug1(NGX_LOG_DEBUG_CORE, shm->log, 0, "shmget id: %d", id);
+-
+-    shm->addr = shmat(id, NULL, 0);
+-
+-    if (shm->addr == (void *) -1) {
+-        ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno, "shmat() failed");
+-    }
+-
+-    if (shmctl(id, IPC_RMID, NULL) == -1) {
+-        ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno,
+-                      "shmctl(IPC_RMID) failed");
+-    }
+-
+-    return (shm->addr == (void *) -1) ? NGX_ERROR : NGX_OK;
+-}
+-
+-
+-void
+-ngx_shm_free(ngx_shm_t *shm)
+-{
+-    if (shmdt(shm->addr) == -1) {
+-        ngx_log_error(NGX_LOG_ALERT, shm->log, ngx_errno,
+-                      "shmdt(%p) failed", shm->addr);
+-    }
+-}
+-
+-#endif

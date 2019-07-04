@@ -1,0 +1,115 @@
+1. Overview
+
+  We need to patch for two reasons: (1) to side-step bugs in
+  Graphene-SGX, and (2) to force the use of a Graphene's (Phoenix's)
+  shared memory implementations.
+
+
+2. Patchs
+
+  Below is a list of the patchs.  
+  
+  Each patch is against the vanilla nginx-1.14.1 vanilla.  Said
+  differently, the patches are not incremental.   (I could have made one
+  giant patch, but separating into individual patches makes the
+  patch's intent clear (most patchs affect a single file), and
+  also provides flexibility to apply as much or as little as
+  needed.)  
+  
+  Some of the patches are dependent on each other.  In particular
+    
+    - nginx-1.14.1-no-atomics.patch
+    - nginx-1.14.1-memserver.patch
+  
+  together force the use of Phoenix memservers for shared memory.
+
+  After those two patches have been applied, one or both of 
+
+    - nginx-1.14.1-memserver-http-cache.patch and
+    - nginx-1.14.1-memserver-ssl-session-cache.patch
+
+  can then be applied; each is a specific, toggable (via ./configure),
+  feature of NGINX that uses shared memory.
+
+    - nginx-1.14.1-no-msg_peek-tls-only.patch
+
+        NGINX looks at the first byte of request to try to guess the
+        protocol (e.g., HTTP vs HTTPS).  In order to do this, NGINX uses
+        the MSG_PEEK flag to recv to read a byte but not remove the byte
+        from the socket's buffer (so that a subsequent recv will also
+        read the byte).  Graphene-SGX does not implement the MSG_PEEK.
+        Since our use-case and benchmarks for Phoenix use TLS, this
+        patch fakes the MSG_PEEK recv by hardcoding the read byte to
+        indicate that the request is over TLS.
+
+    - nginx-1.14.1-no-atomics.patch
+
+        NGINX tries very hard to use atomic integers (and the associated
+        atomic operations over these integers) to implement
+        locks.  For the memory server, we want NGINX to use lock files
+        instead.  This patch forces NGINX to run without support for
+        atomics, and thus force the use of lock files. 
+
+    - nginx-1.14.1-memserver.patch
+        
+        Depends on: 
+            nginx-1.14.1-no-atomics.patch  
+            
+        NGINX creates a lock file for the accept_mutex (see the the
+        same-named NGINX directive), as well as a shared
+        memory region for statistics (e.g., number of requests
+        served).  Neither of these two things are used by
+        default, but they are created.  This patch ensures that they
+        are created via Phoenix's memservers, as long as the NGINX
+        lock_file directive is set to the value '/', and the
+        Graphene mounts at least one Phoenix memory server on
+        /memserver0.
+
+    - nginx-1.14.1-memserver-http-cache.patch
+    
+        Depends on: 
+            nginx-1.14.1-no-atomics.patch
+            nginx-1.14.1-memserver.patch
+    
+        NGINX uses a shared memory region (and associated lock) to
+        manage meta-data about the on-disk HTTP file cache.  There's a
+        small issue in that the shared memory region is initialized, but
+        the resultant changes to the shared memory region are not pushed
+        to the Phoenix memory server (i.e., the canonical replica of the
+        shared memory region).  This patch therefore wraps the
+        initialization in a lock/unlock, so that, on unlock, the
+        canonical replica also reflects the initialization.
+
+    - nginx-1.14.1-memserver-ssl-session-cache.patch
+
+        Depends on: 
+            nginx-1.14.1-no-atomics.patch
+            nginx-1.14.1-memserver.patch
+    
+        NGINX uses a shared memory region (and associated lock) to
+        manage SSL session resumption values.  As with the HTTP file
+        cache, there's a small issue in that the shared memory region is
+        initialized, but the resultant changes to the shared memory
+        region are not pushed to the Phoenix memory server (i.e., the
+        canonical replica of the shared memory region).  This
+        patch therefore wraps the initialization in a lock/unlock, so
+        that, on unlock, the canonical replica also reflects the
+        initialization.
+
+    - patch-ngx_auto_config.py
+
+        This patch needs to be applied after ./configure is run.  It
+        sets the macro values of 
+
+            NGX_HAVE_GCC_ATOMIC
+            NGX_HAVE_POSIX_SEM
+
+        to zero.  It's quite possible that this patch is not needed,
+        as setting NGX_HAVE_GGC_ATOMIC to zero is a bit of a
+        safeguard to catch any uses of atomic operations that the
+        nginx-1.14.1-no-atomics.patch did not catch, and setting
+        NGX_HAVE_POSIX_SEM similarly catches any cases where a semaphore
+        is being used instead of, say, a lock file.  Another issue is
+        that this patch addresses is that these atomics also define the
+        ABI for add-on modules, which is potentially important when
+        using extensions, such as modsecurity.

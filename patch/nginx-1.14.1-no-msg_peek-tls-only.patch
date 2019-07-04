@@ -1,0 +1,19 @@
+diff -ruN nginx-1.14.1/src/http/ngx_http_request.c nginx-1.14.1-no-msg_peek-tls-only/src/http/ngx_http_request.c
+--- nginx-1.14.1/src/http/ngx_http_request.c	2018-11-06 08:52:46.000000000 -0500
++++ nginx-1.14.1-no-msg_peek-tls-only/src/http/ngx_http_request.c	2019-07-01 14:47:36.163456858 -0400
+@@ -664,7 +664,14 @@
+ 
+     size = hc->proxy_protocol ? sizeof(buf) : 1;
+ 
+-    n = recv(c->fd, (char *) buf, size, MSG_PEEK);
++    /*
++     * Graphene-SGX does not support MSG_PEEK; force use of TLS
++     * by hardcoding the initial byte received to indicate that the
++     * client's request is over TLS (see the `if (n == 1)' block further
++     * down in this function).
++     */
++    n = 1;
++    buf[0] = 0x16;
+ 
+     err = ngx_socket_errno;
+ 

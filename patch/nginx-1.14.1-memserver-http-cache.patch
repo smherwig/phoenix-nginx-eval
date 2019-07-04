@@ -1,0 +1,51 @@
+diff -ruN nginx-1.14.1/src/http/ngx_http_file_cache.c nginx-1.14.1-memserver-http-cache/src/http/ngx_http_file_cache.c
+--- nginx-1.14.1/src/http/ngx_http_file_cache.c	2018-11-06 08:52:46.000000000 -0500
++++ nginx-1.14.1-memserver-http-cache/src/http/ngx_http_file_cache.c	2019-07-04 10:55:20.536231943 -0400
+@@ -78,7 +78,14 @@
+ 
+ static u_char  ngx_http_file_cache_key[] = { LF, 'K', 'E', 'Y', ':', ' ' };
+ 
+-
++/*
++ * Graphene-SGX:
++ *  The issue is that a shared memory region is being initialized,
++ *  and in order to make sure the initialization syncs back to
++ *  the canonical shared memory replica (e.g., as held by a memserver),
++ *  we need to wrap the initialization in a lock and unlock of the
++ *  associated lock file.
++ */
+ static ngx_int_t
+ ngx_http_file_cache_init(ngx_shm_zone_t *shm_zone, void *data)
+ {
+@@ -134,8 +141,10 @@
+         return NGX_OK;
+     }
+ 
+-    cache->sh = ngx_slab_alloc(cache->shpool, sizeof(ngx_http_file_cache_sh_t));
++    ngx_shmtx_lock(&cache->shpool->mutex);
++    cache->sh = ngx_slab_alloc_locked(cache->shpool, sizeof(ngx_http_file_cache_sh_t));
+     if (cache->sh == NULL) {
++        ngx_shmtx_unlock(&cache->shpool->mutex);
+         return NGX_ERROR;
+     }
+ 
+@@ -158,8 +167,9 @@
+ 
+     len = sizeof(" in cache keys zone \"\"") + shm_zone->shm.name.len;
+ 
+-    cache->shpool->log_ctx = ngx_slab_alloc(cache->shpool, len);
++    cache->shpool->log_ctx = ngx_slab_alloc_locked(cache->shpool, len);
+     if (cache->shpool->log_ctx == NULL) {
++        ngx_shmtx_unlock(&cache->shpool->mutex);
+         return NGX_ERROR;
+     }
+ 
+@@ -168,6 +178,8 @@
+ 
+     cache->shpool->log_nomem = 0;
+ 
++    ngx_shmtx_unlock(&cache->shpool->mutex);
++
+     return NGX_OK;
+ }
+ 
