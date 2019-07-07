@@ -92,6 +92,41 @@ graphene-cache-nomodsec-release:
 	)
 
 
+# Single-Tenant NGINX configurations
+#----------------------------------------------------------
+single-tenant/graphene-cache-nomodsec-debug_nextfs-smc-nonsm \
+single-tenant/graphene-cache-nomodsec-debug_nextfs-smc-nsm \
+single-tenant/graphene-cache-nomodsec-debug_nextfs-smdish-nonsm  \
+single-tenant/graphene-cache-nomodsec-debug_nextfs-smdish-nsm \
+single-tenant/graphene-cache-nomodsec-debug_nextfs-smuf-nonsm \
+single-tenant/graphene-cache-nomodsec-debug_nextfs-smuf-nsm \
+single-tenant/graphene-cache-nomodsec-debug_nonextfs-smc-nonsm \
+single-tenant/graphene-cache-nomodsec-debug_nonextfs-smc-nsm \
+single-tenant/graphene-cache-nomodsec-debug_nonextfs-smdish-nonsm \
+single-tenant/graphene-cache-nomodsec-debug_nonextfs-smdish-nsm \
+single-tenant/graphene-cache-nomodsec-debug_nonextfs-smuf-nonsm \
+single-tenant/graphene-cache-nomodsec-debug_nonextfs-smuf-nsm \
+single-tenant/graphene-cache-nomodsec-release_nextfs-smc-nonsm \
+single-tenant/graphene-cache-nomodsec-release_nextfs-smc-nsm \
+single-tenant/graphene-cache-nomodsec-release_nextfs-smdish-nonsm \
+single-tenant/graphene-cache-nomodsec-release_nextfs-smdish-nsm \
+single-tenant/graphene-cache-nomodsec-release_nextfs-smuf-nonsm \
+single-tenant/graphene-cache-nomodsec-release_nextfs-smuf-nsm \
+single-tenant/graphene-cache-nomodsec-release_nonextfs-smc-nonsm \
+single-tenant/graphene-cache-nomodsec-release_nonextfs-smc-nsm \
+single-tenant/graphene-cache-nomodsec-release_nonextfs-smdish-nonsm \
+single-tenant/graphene-cache-nomodsec-release_nonextfs-smdish-nsm \
+single-tenant/graphene-cache-nomodsec-release_nonextfs-smuf-nonsm \
+single-tenant/graphene-cache-nomodsec-release_nonextfs-smuf-nsm:
+	mkdir -p pkg/$@/sgx
+	cp -R config/mounts/* pkg/$@
+	cp config/$@/nginx.conf pkg/$@/nginx/conf
+	$(MAKE_SGX) -t /home/smherwig/phoenix/makemanifest -g $(GRAPHENE) \
+		-k config/enclave_signing.key \
+		-p config/$@/manifest.conf -o pkg/$@/sgx
+
+
+
 # Base vanilla deploys of NGINX
 #----------------------------------------------------------
 #linux-origin-debug:
