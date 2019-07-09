@@ -67,7 +67,7 @@ address 192.168.99.10
 netmask 255.255.255.0
 ```
 
-Reboot the machine.  AFter reboot, the `eno1` physical port will have IP adress
+Reboot the machine.  After reboot, the `eno1` physical port will have IP adress
 `192.168.99.10`.
 
 On you Mac, hookup the Ethernet cable and go to
@@ -83,6 +83,10 @@ Configure IPv4: Manually
 Search Domains: <blank>
 ```
 
+I also had to turn WiFi off on my Mac. (It might be the case
+that Ethernet and WiFi can co-exist on the Mac, but that that
+Ethernet needs to be ordered higher than the Wifi.)
+
 # Running ApacheBench
 
 ## Single-Tenant
@@ -96,3 +100,19 @@ ab -n 1000 -c 8 https://192.168.99.10:8443/1k.txt
 This makes 1000 total requests from 8 concurrent clients (that is `ab` will
 issue 8 requests at the same time).
 
+## Origin
+
+```
+make origin/linux-standalone-nomodsec-release_origin
+cd pkg/origin/linux-standalone-nomodsec-release_origin/nginx
+./sbin/nginx -p $PWD -c conf/nginx.conf
+```
+
+
+## Linux
+
+```
+make single-tenant/linux-cache-nomodsec-debug_nonsm/nginx
+cd pkg/single-tenant/linux-cache-nomodsec-debug_nonsm/nginx
+./sbin/nginx -p $PWD -c conf/nginx.conf
+```
