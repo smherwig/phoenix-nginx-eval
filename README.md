@@ -86,7 +86,7 @@ Search Domains: <blank>
 # Running ApacheBench
 
 ## Single-Tenant
-
+Macs should have ApacheBench installed by default (`/usr/sbin/ab`).
 We configure NGINX to run a single worker process, and run the following
 
 ```
