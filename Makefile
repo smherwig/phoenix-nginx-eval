@@ -43,7 +43,7 @@ graphene-standalone-nomodsec-debug:
 		set -e; \
 		cd $(NGINX_GRAPHENE); \
 		./configure \
-			--prefix=$(TOP)/builds/$@/nginx \
+			--prefix=$(TOP)/builds/$@ \
 			$(COMMON_CFG_OPTS) \
 			$(STANDALONE_CFG_OPTS) \
 			$(DEBUG_CFG_OPTS); \
@@ -58,7 +58,7 @@ graphene-standalone-nomodsec-release:
 		set -e; \
 		cd $(NGINX_GRAPHENE); \
 		./configure \
-			--prefix=$(TOP)/builds/$@/nginx \
+			--prefix=$(TOP)/builds/$@ \
 			$(COMMON_CFG_OPTS) \
 			$(STANDALONE_CFG_OPTS); \
 		$(TOP)/patch/patch-ngx_auto_config.py objs/ngx_auto_config.h; \
@@ -71,7 +71,7 @@ graphene-cache-nomodsec-debug:
 		set -e; \
 		cd $(NGINX_GRAPHENE); \
 		./configure \
-			--prefix=$(TOP)/builds/$@/nginx \
+			--prefix=$(TOP)/builds/$@ \
 			$(COMMON_CFG_OPTS) \
 			$(DEBUG_CFG_OPTS); \
 		$(TOP)/patch/patch-ngx_auto_config.py objs/ngx_auto_config.h; \
@@ -84,7 +84,7 @@ graphene-cache-nomodsec-release:
 		set -e; \
 		cd $(NGINX_GRAPHENE); \
 		./configure \
-			--prefix=$(TOP)/builds/$@/nginx \
+			--prefix=$(TOP)/builds/$@ \
 			$(COMMON_CFG_OPTS); \
 		$(TOP)/patch/patch-ngx_auto_config.py objs/ngx_auto_config.h; \
 		make; \
