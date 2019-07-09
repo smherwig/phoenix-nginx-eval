@@ -4,7 +4,6 @@ TOP=$(PWD)
 NGINX= nginx-1.14.1
 NGINX_GRAPHENE= nginx-1.14.1-graphene
 
-# builds/   deploy/
 
 # NGINX configure options
 #---------------------------------------------------------
@@ -27,6 +26,12 @@ DEBUG_CFG_OPTS= --with-debug
 
 # Collections of build targets
 #---------------------------------------------------------
+LINUX_BASES = \
+	linux-standalone-nomodsec-debug \
+	linux-standalone-nomodsec-release \
+	linux-cache-nomodsec-debug \
+	linux-cache-nomodsec-release
+
 GRAPHENE_BASES = \
 	graphene-standalone-nomodsec-debug \
 	graphene-standalone-nomodsec-release \
@@ -34,10 +39,65 @@ GRAPHENE_BASES = \
 	graphene-cache-nomodsec-release
 
 
+# Base builds
+#----------------------------------------------------------
+bases-linux: $(LINUX_BASES)
+bases-graphene: $(GRAPHENE_BASES)
+bases-all: $(LINUX_BASES) $(GRAPHENE_BASES)
+
+# Base Linux builds of NGINX
+#----------------------------------------------------------
+linux-standalone-nomodsec-debug:
+	(\
+		set -e; \
+		cd $(NGINX); \
+		./configure \
+			--prefix=$(TOP)/builds/$@ \
+			$(COMMON_CFG_OPTS) \
+			$(STANDALONE_CFG_OPTS) \
+			$(DEBUG_CFG_OPTS); \
+		make; \
+		make install; \
+	)
+
+linux-standalone-nomodsec-release:
+	(\
+		set -e; \
+		cd $(NGINX); \
+		./configure \
+			--prefix=$(TOP)/builds/$@ \
+			$(COMMON_CFG_OPTS) \
+			$(STANDALONE_CFG_OPTS); \
+		make; \
+		make install; \
+	)
+
+linux-cache-nomodsec-debug:
+	(\
+		set -e; \
+		cd $(NGINX); \
+		./configure \
+			--prefix=$(TOP)/builds/$@ \
+			$(COMMON_CFG_OPTS) \
+			$(DEBUG_CFG_OPTS); \
+		make; \
+		make install; \
+	)
+
+linux-cache-nomodsec-release:
+	(\
+		set -e; \
+		cd $(NGINX); \
+		./configure \
+			--prefix=$(TOP)/builds/$@ \
+			$(COMMON_CFG_OPTS); \
+		make; \
+		make install; \
+	)
+
+
 # Base Graphene builds of NGINX
 #----------------------------------------------------------
-graphene_bases: $(GRAPHENE_BASES)
-
 graphene-standalone-nomodsec-debug:
 	(\
 		set -e; \
@@ -92,7 +152,33 @@ graphene-cache-nomodsec-release:
 	)
 
 
-# Single-Tenant NGINX configurations
+# Origin server packaged deployments (used for all deployments)
+#----------------------------------------------------------
+origin/linux-standalone-nomodsec-release_origin:
+	mkdir -p pkg/$@
+	cp -R config/mounts/nginx pkg/$@
+	cp config/$@/nginx.conf pkg/$@/nginx/conf
+	cp builds/linux-standalone-nomodsec-release/sbin/nginx pkg/$@/nginx/sbin/
+
+
+# Single-Tenant Linux caching-server packaged deployments
+#----------------------------------------------------------
+single-tenant/linux-cache-nomodsec-debug_nonsm \
+single-tenant/linux-cache-nomodsec-debug_nsm:
+	mkdir -p pkg/$@
+	cp -R config/mounts/nginx pkg/$@
+	cp config/$@/nginx.conf pkg/$@/nginx/conf
+	cp builds/linux-cache-nomodsec-debug/sbin/nginx pkg/$@/nginx/sbin/
+
+single-tenant/linux-cache-nomodsec-release_nonsm \
+single-tenant/linux-cache-nomodsec-release_nsm:
+	mkdir -p pkg/$@
+	cp -R config/mounts/nginx pkg/$@
+	cp config/$@/nginx.conf pkg/$@/nginx/conf
+	cp builds/linux-cache-nomodsec-release/sbin/nginx pkg/$@/nginx/sbin/
+
+
+# Single-Tenant NGINX caching-server packaged deployments
 #----------------------------------------------------------
 single-tenant/graphene-cache-nomodsec-debug_nextfs-smc-nonsm \
 single-tenant/graphene-cache-nomodsec-debug_nextfs-smc-nsm \
@@ -123,63 +209,4 @@ single-tenant/graphene-cache-nomodsec-release_nonextfs-smuf-nsm:
 	cp config/$@/nginx.conf pkg/$@/nginx/conf
 	$(MAKE_SGX) -t /home/smherwig/phoenix/makemanifest -g $(GRAPHENE) \
 		-k config/enclave_signing.key \
-		-p config/$@/manifest.conf -o pkg/$@/sgx
-
-
-
-# Base vanilla deploys of NGINX
-#----------------------------------------------------------
-#linux-origin-debug:
-#	(\
-#		set -e; \
-#		cd $(NGINX); \
-#		./configure \
-#			--prefix=$(TOP)/builds/$@/nginx \
-#			$(COMMON_CFG_OPTS) \
-#			$(STANDALONE_CFG_OPTS) \
-#			$(DEBUG_CFG_OPTS); \
-#		make; \
-#		make install; \
-#	)
-#	cp etc/$@/nginx.conf builds/$@/nginx/conf
-#	cp -R etc/html/* builds/$@/nginx/html
-#
-#
-#linux-standalone-nomodsec-debug:
-#	(\
-#		set -e; \
-#		cd $(NGINX); \
-#		./configure \
-#			--prefix=$(TOP)/builds/$@/nginx \
-#			$(COMMON_CFG_OPTS) \
-#			$(STANDALONE_CFG_OPTS) \
-#			$(DEBUG_CFG_OPTS); \
-#		make; \
-#		make install; \
-#	)
-#	cp etc/$@/nginx.conf builds/$@/nginx/conf
-#	cp etc/common/server.key builds/$@/nginx/conf
-#	cp etc/common/server.crt builds/$@/nginx/conf
-#	cp -R etc/html/* builds/$@/nginx/html
-#
-#
-#linux-standalone-nomodsec-release:
-#	(\
-#		set -e; \
-#		cd $(NGINX); \
-#		./configure \
-#			--prefix=$(TOP)/builds/$@/nginx \
-#			$(COMMON_CFG_OPTS) \
-#			$(STANDALONE_CFG_OPTS) \
-#		make; \
-#		make install; \
-#	)
-#	cp etc/$@/nginx.conf builds/$@/nginx/conf
-#	cp etc/common/server.key builds/$@/nginx/conf
-#	cp etc/common/server.crt builds/$@/nginx/conf
-#	cp -R etc/html/* builds/$@/nginx/html
-#
-
-#graphene-cache-nomodsec-release-bdverity-smdish
-
-
+		-p config/$@/manifest.conf -o pkg/$@/sgx 
