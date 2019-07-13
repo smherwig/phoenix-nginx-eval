@@ -48,6 +48,18 @@ This is a minimal UNIX `etc` directory that has a few files that
 applications typically expect to exist.
 
 
+# Keys
+
+## NGINX TLS keys
+The NGINX TLS cert and private key are `config/mounts/nginx/conf/server.crt`
+and `config/mounts/nginx/conf/server.key`, respectively.
+
+## Phoenix TLS keys
+The keying material that the Phoenix kernel servers (e.g., nextfs, smdish) use are
+`config/root.crt` as the CA cert, `config/proc.crt` as the TLS certificate for
+a key server, and `config/proc.key`, as the private key.  For this benchmark,
+all kernel servers use the same certs and keys.
+
 
 # Connecting two computers directly with an ethernet cable
 This is based on
@@ -108,11 +120,95 @@ cd pkg/origin/linux-standalone-nomodsec-release_origin/nginx
 ./sbin/nginx -p $PWD -c conf/nginx.conf
 ```
 
+# Single-Tenant Benchmarks
 
 ## Linux
+
+### `linux-cache-nomodsec-debug_nonsm`
 
 ```
 make single-tenant/linux-cache-nomodsec-debug_nonsm/nginx
 cd pkg/single-tenant/linux-cache-nomodsec-debug_nonsm/nginx
 ./sbin/nginx -p $PWD -c conf/nginx.conf
 ```
+
+### `linux-cache-nomodsec-debug_nsm`
+
+```
+cp config/mounts/nginx/conf/server.key ~/phoenix/keyserver/server/
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/keyserver/deploy/manifest.conf \
+        -t $PWD -v -o nsmserver
+cd nsmserver
+mv manifest.sgx nsmserver.manifest.sgx
+./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:900
+```
+
+```
+cd ~/phoenix/phoenix-nginx-eval
+make single-tenant/linux-cache-nomodsec-debug_nsm/nginx
+cd pkg/single-tenant/linux-cache-nomodsec-debug_nonsm/nginx
+./sbin/nginx -p $PWD -c conf/nginx.conf
+```
+
+## Graphene
+
+### graphene-chrootfs-smdish-nonsm
+```
+cp config/root.crt ~/phoenix/memserver/smdish/
+
+cp config/server.crt ~/phoenix/memserver/smdish/
+cp config/server.key ~/phoenix/memserver/smdish/
+
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/memserver/deploy/smdishserver.conf \
+        -t $PWD -v -o smdishserver
+cd smdishserver
+mv manifest.sgx smdishserver.manifest.sgx
+./smdishserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key /etc/ramones
+```
+
+```
+cd ~/phoenix/phoenix-nginx-eval
+make single-tenant/graphene-cache-nomodsec-release_nonextfs-smdish-nonsm
+cd pkg/single-tenant/graphene-cache-nomodsec-release_nonextfs-smdish-nonsm
+mv manifest.sgx nginx.manifest.sgx
+./nginx.manifest.sgx -p /nginx -c /nginx/conf/nginx.conf
+```
+
+### graphene-chrootfs-smuf-nonsm
+
+```
+cp config/root.crt ~/phoenix/memserver/smdish/
+
+cp config/server.crt ~/phoenix/memserver/smdish/
+cp config/server.key ~/phoenix/memserver/smdish/
+
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/memserver/deploy/smufserver.conf \
+        -t $PWD -v -o smufserver
+cd smufserver
+mv manifest.sgx smufserver.manifest.sgx
+./smuferver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key -r /memfiles0 /etc/ramones
+```
+
+
+
+# BUGS
+
+## Changing `manifest.conf` name
+The need to change the name of the manifest, as in
+
+```
+mv manifest.sgx nginx.manifest.sgx
+```
+
+## Absoluate vs Relative paths in `manifest.conf`
+`makemanifest` inserts absolute paths for the exeuctable and read-only chroot
+mounts, but relative paths for the read-write chroot mounts.
+
+
+

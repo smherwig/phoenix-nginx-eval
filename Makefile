@@ -3,6 +3,12 @@
 TOP=$(PWD)
 NGINX= nginx-1.14.1
 NGINX_GRAPHENE= nginx-1.14.1-graphene
+GRAPHENE=/home/smherwig/ws/phoenix
+
+
+# TOOLS
+#---------------------------------------------------------
+MAKE_SGX=/home/smherwig/phoenix/makemanifest/make_sgx.py
 
 
 # NGINX configure options
@@ -204,9 +210,9 @@ single-tenant/graphene-cache-nomodsec-release_nonextfs-smdish-nonsm \
 single-tenant/graphene-cache-nomodsec-release_nonextfs-smdish-nsm \
 single-tenant/graphene-cache-nomodsec-release_nonextfs-smuf-nonsm \
 single-tenant/graphene-cache-nomodsec-release_nonextfs-smuf-nsm:
-	mkdir -p pkg/$@/sgx
+	mkdir -p pkg/$@
 	cp -R config/mounts/* pkg/$@
 	cp config/$@/nginx.conf pkg/$@/nginx/conf
 	$(MAKE_SGX) -t /home/smherwig/phoenix/makemanifest -g $(GRAPHENE) \
 		-k config/enclave_signing.key \
-		-p config/$@/manifest.conf -o pkg/$@/sgx 
+		-p config/$@/manifest.conf -o pkg/$@ 
