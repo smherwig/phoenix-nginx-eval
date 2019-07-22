@@ -1,0 +1,53 @@
+* keyserver is always in an enclave     (rsa_priv_enc() on each request)
+* cache is always 16k (smallest possible)
+* file is always 1k.txt
+* 1 nginx worker
+* enclaves are always exitless
+* nextfs filesystem images are always size=128M, blocksize=1024, and type=ext2.
+* bdcrypt always uses aes-256-xts
+
+So, smdish and smuf are like bdvericrypt
+smc is like bdcrypt
+what you are missing is a smverity (svm)  (a la bdverity).
+
+   fsserver    memserver   keyserver  config                                                   data file                                    throughput (req/sec)   latency (ms)
+1.  stock       nginx       no        linux-cache-nomodsec-release_nonsm                       single-tenant/linux-nonsm.dat                    130.24                  61.425
+2.  stock       nginx       yes       linux-cache-nomodsec-release_nsm                         single-tenant/linux-nsm.dat                      128.47                  62.271
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+3.  chroot (rw) smdish      no        graphene-cache-nomodsec-release_nonextfs-smdish-nonsm    single-tenant/graphene-chrootfs-smdish-nonsm.dat 126.35                  63.315
+4.  chroot (rw) smdish      yes       graphene-cache-nomodsec-release_nonextfs-smdish-nsm      single-tenant/graphene-chrootfs-smdish-nsm.dat   130.53                  61.290
+5.  chroot (rw) smuf        no        graphene-cache-nomodsec-release_nonextfs-smuf-nonsm      single-tenant/graphene-chrootfs-smuf-nonsm.dat   136.28                  58.704
+6.  chroot (rw) smuf        yes       graphene-cache-nomodsec-release_nonextfs-smuf-nsm        single-tenant/graphene-chrootfs-smuf-nsm.dat     137.04                  58.377
+7.  chroot (rw) smc         no        graphene-cache-nomodsec-release_nonextfs-smc-nonsm       single-tenant/graphene-chrootfs-smc-nonsm.dat    139.19                  57.476
+8.  chroot (rw) smc         yes       graphene-cache-nomodsec-release_nonextfs-smc-nsm         single-tenant/graphene-chrootfs-smc-nsm.dat      139.55                  57.327
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+9.  bdstd       smdish      no        graphene-cache-nomodsec-release_nextfs-smdish-nonsm      single-tenant/graphene-bdstd-smdish-nonsm.dat    118.57                  67.473
+10. bdstd       smdish      yes       graphene-cache-nomodsec-release_nextfs-smdish-nsm        single-tenant/graphene-bdstd-smdish-nsm.dat      119.06                  67.192
+11. bdstd       smuf        no        graphene-cache-nomodsec-release_nextfs-smuf-nonsm        single-tenant/graphene-bdstd-smuf-nonsm.dat      117.52                  68.076
+12. bdstd       smuf        yes       graphene-cache-nomodsec-release_nextfs-smuf-nsm          single-tenant/graphene-bdstd-smuf-nsm.dat        125.34                  63.828
+13. bdstd       smc         no        graphene-cache-nomodsec-release_nextfs-smuf-nonsm        single-tenant/graphene-bdstd-smuf-nosm.dat       135.35                  59.107
+14. bdstd       smc         yes       graphene-cache-nomodsec-release_nextfs-smc-nsm           single-tenant/graphene-bdstd-smuf-nsm.dat        134.95                  59.283
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+15. bdcrypt     smdish      no        graphene-cache-nomodsec-release_nextfs-smdish-nonsm      single-tenant/graphene-bdcrypt-smdish-nonsm.dat  116.75                  68.521
+16. bdcrypt     smdish      yes       graphene-cache-nomodsec-release_nextfs-smdish-nsm        single-tenant/graphene-bdcrypt-smdish-nsm.dat     22.11                 361.808
+17. bdcrypt     smuf        no        graphene-cache-nomodsec-release_nextfs-smuf-nonsm        single-tenant/graphene-bdcrypt-smuf-nonsm.dat    125.00                  63.998
+18. bdcrypt     smuf        yes       graphene-cache-nomodsec-release_nextfs-smuf-nsm          single-tenant/graphene-bdcrypt-smuf-nsm.dat       22.42                 356.870
+19. bdcrypt     smc         no        graphene-cache-nomodsec-release_nextfs-smuf-nonsm        single-tenant/graphene-bdcrypt-smc-nonsm.dat     135.12                  59.205
+20. bdcrypt     smc         yes       graphene-cache-nomodsec-release_nextfs-smc-nsm           single-tenant/graphene-bdcrypt-smc-nsm.dat        22.64                 353.339
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+21. bdverity    smdish      no          ""
+22. bdverity    smdish      yes
+23. bdverity    smuf        no
+24. bdverity    smuf        yes
+25. bdverity    smc         no
+26. bdverity    smc         yes
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+27. bdvericrypt smdish      no          ""
+28. bdvericrypt smdish      yes
+29. bdvericrypt smuf        no
+30. bdvericrypt smuf        yes
+31. bdvericrypt smc         no
+32. bdvericrypt smc         yes
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
