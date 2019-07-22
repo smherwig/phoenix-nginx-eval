@@ -155,11 +155,12 @@ cd pkg/single-tenant/linux-cache-nomodsec-debug_nonsm/nginx
 ## Graphene
 
 ### graphene-chrootfs-smdish-nonsm
+First, package the memory server:
+
 ```
 cp config/root.crt ~/phoenix/memserver/smdish/
-
-cp config/server.crt ~/phoenix/memserver/smdish/
-cp config/server.key ~/phoenix/memserver/smdish/
+cp config/proc.crt ~/phoenix/memserver/smdish/
+cp config/proc.key ~/phoenix/memserver/smdish/
 
 cd ~/phoenix/makemanifest
 ./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
@@ -170,29 +171,693 @@ mv manifest.sgx smdishserver.manifest.sgx
 ./smdishserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key /etc/ramones
 ```
 
+Next, package NGINX:
 ```
 cd ~/phoenix/phoenix-nginx-eval
 make single-tenant/graphene-cache-nomodsec-release_nonextfs-smdish-nonsm
 cd pkg/single-tenant/graphene-cache-nomodsec-release_nonextfs-smdish-nonsm
 mv manifest.sgx nginx.manifest.sgx
-./nginx.manifest.sgx -p /nginx -c /nginx/conf/nginx.conf
+./nginx.manifest.sgx -p /nginx
+```
+
+### graphene-chrootfs-smdish-nsm
+Package the memory server:
+```
+cp config/root.crt ~/phoenix/memserver/smdish/
+cp config/proc.crt ~/phoenix/memserver/smdish/
+cp config/proc.key ~/phoenix/memserver/smdish/
+
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/memserver/deploy/smdishserver.conf \
+        -t $PWD -v -o smdishserver
+cd smdishserver
+mv manifest.sgx smdishserver.manifest.sgx
+./smdishserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key /etc/ramones
+```
+
+Package the key server:
+```
+cp config/mounts/nginx/conf/server.key ~/phoenix/keyserver/server/
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/keyserver/deploy/manifest.conf \
+        -t $PWD -v -o nsmserver 
+cd nsmserver
+mv manifest.sgx nsmserver.manifest.sgx
+./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9000
+```
+
+Package NGINX:
+```
+cd ~/phoenix/phoenix-nginx-eval
+make single-tenant/graphene-cache-nomodsec-release_nonextfs-smdish-nsm
+cd pkg/single-tenant/graphene-cache-nomodsec-release_nonextfs-smdish-nsm
+mv manifest.sgx nginx.manifest.sgx
+./nginx.manifest.sgx -p /nginx
 ```
 
 ### graphene-chrootfs-smuf-nonsm
 
+Package the smuf memory server:
 ```
-cp config/root.crt ~/phoenix/memserver/smdish/
+# copy key material
+cp config/root.crt ~/phoenix/memserver/smuf/
+cp config/proc.crt ~/phoenix/memserver/smuf/
+cp config/proc.key ~/phoenix/memserver/smuf/
 
-cp config/server.crt ~/phoenix/memserver/smdish/
-cp config/server.key ~/phoenix/memserver/smdish/
+# reset the memfile dir
+rm -rf ~/phoenix/memfiles/0
+mkdir ~/phoenix/memfiles/0
 
+# package
 cd ~/phoenix/makemanifest
 ./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
         -p ~/phoenix/memserver/deploy/smufserver.conf \
         -t $PWD -v -o smufserver
 cd smufserver
 mv manifest.sgx smufserver.manifest.sgx
-./smuferver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key -r /memfiles0 /etc/ramones
+
+# run
+./smufserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key -r /memfiles0 /etc/ramones
+```
+
+Package NGINX:
+```
+cd ~/phoenix/phoenix-nginx-eval
+make single-tenant/graphene-cache-nomodsec-release_nonextfs-smuf-nonsm
+cd pkg/single-tenant/graphene-cache-nomodsec-release_nonextfs-smuf-nonsm
+mv manifest.sgx nginx.manifest.sgx
+./nginx.manifest.sgx -p /nginx
+```
+
+### graphene-chrootfs-smuf-nsm
+
+Package the smuf memory server:
+```
+# copy key material
+cp config/root.crt ~/phoenix/memserver/smuf/
+cp config/proc.crt ~/phoenix/memserver/smuf/
+cp config/proc.key ~/phoenix/memserver/smuf/
+
+# reset the memfile dir
+rm -rf ~/phoenix/memfiles/0
+mkdir ~/phoenix/memfiles/0
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/memserver/deploy/smufserver.conf \
+        -t $PWD -v -o smufserver
+cd smufserver
+mv manifest.sgx smufserver.manifest.sgx
+
+# run
+./smufserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key -r /memfiles0 /etc/ramones
+```
+
+Package the key server:
+```
+# copy the NGINX SSL private key
+cp config/mounts/nginx/conf/server.key ~/phoenix/keyserver/server/
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/keyserver/deploy/manifest.conf \
+        -t $PWD -v -o nsmserver 
+cd nsmserver
+mv manifest.sgx nsmserver.manifest.sgx
+
+# run
+./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9000
+```
+
+Package NGINX:
+```
+cd ~/phoenix/phoenix-nginx-eval
+make single-tenant/graphene-cache-nomodsec-release_nonextfs-smuf-nsm
+cd pkg/single-tenant/graphene-cache-nomodsec-release_nonextfs-smuf-nsm
+mv manifest.sgx nginx.manifest.sgx
+./nginx.manifest.sgx -p /nginx
+```
+
+### graphene-chrootfs-smc-nonsm
+
+Prepare the chroot mount used for smc's shared memory:
+```
+# reset the memfile dir
+rm -rf ~/phoenix/memfiles/0
+mkdir ~/phoenix/memfiles/0
+```
+
+Package NGINX:
+```
+cd ~/phoenix/phoenix-nginx-eval
+make single-tenant/graphene-cache-nomodsec-release_nonextfs-smc-nonsm
+cd pkg/single-tenant/graphene-cache-nomodsec-release_nonextfs-smc-nonsm
+mv manifest.sgx nginx.manifest.sgx
+./nginx.manifest.sgx -p /nginx
+```
+
+### graphene-chrootfs-smc-nsm
+
+Prepare the chroot mount used for smc's shared memory:
+```
+# reset the memfile dir
+rm -rf ~/phoenix/memfiles/0
+mkdir ~/phoenix/memfiles/0
+```
+
+Package the key server:
+```
+# copy the NGINX SSL private key
+cp config/mounts/nginx/conf/server.key ~/phoenix/keyserver/server/
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/keyserver/deploy/manifest.conf \
+        -t $PWD -v -o nsmserver 
+cd nsmserver
+mv manifest.sgx nsmserver.manifest.sgx
+
+# run
+./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9000
+```
+
+Package NGINX:
+```
+cd ~/phoenix/phoenix-nginx-eval
+make single-tenant/graphene-cache-nomodsec-release_nonextfs-smc-nsm
+cd pkg/single-tenant/graphene-cache-nomodsec-release_nonextfs-smc-nsm
+mv manifest.sgx nginx.manifest.sgx
+./nginx.manifest.sgx -p /nginx
+```
+
+### graphene-bdstd-smdish-nonsm
+
+Package the nextfs file server with bdstd block device:
+```
+# copy over the key material
+cp config/root.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.key ~/phoenix/fileserver/deploy/fs/srv/
+
+# create filesystem
+cd ~/phoenix/fileserver/makefs
+mkdir root
+# the -t 2 and -b 1024 are superfluous, as those are the defaults
+./makefs.py -v -t 2 -s 128M -l $HOME/bin/lwext4-mkfs \
+        -b 1024 fs.std.img root
+cp fs.std.img ~/phoenix/fileserver/deploy/fs/srv/
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/fileserver/deploy/manifest.conf \
+        -t $PWD -v -o nextfsserver 
+
+# run
+mv manifest.sgx nextfsserver.manifest.sgx
+./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
+        -b bdstd /etc/clash /srv/fs.std.img
+```
+
+
+Package the smdish shared memory server:
+```
+# copy over the key material
+cp config/root.crt ~/phoenix/memserver/smdish/
+cp config/proc.crt ~/phoenix/memserver/smdish/
+cp config/proc.key ~/phoenix/memserver/smdish/
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/memserver/deploy/smdishserver.conf \
+        -t $PWD -v -o smdishserver
+
+# run
+cd smdishserver
+mv manifest.sgx smdishserver.manifest.sgx
+./smdishserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key /etc/ramones
+```
+
+Package NGINX:
+```
+cd ~/phoenix/phoenix-nginx-eval
+make single-tenant/graphene-cache-nomodsec-release_nextfs-smdish-nonsm
+cd pkg/single-tenant/graphene-cache-nomodsec-release_nextfs-smdish-nonsm
+mv manifest.sgx nginx.manifest.sgx
+./nginx.manifest.sgx -p /nginx
+```
+
+### graphene-bdstd-smdish-nsm
+
+Package the nextfs file server with bdstd block device:
+```
+# copy over the key material
+cp config/root.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.key ~/phoenix/fileserver/deploy/fs/srv/
+
+# create filesystem
+cd ~/phoenix/fileserver/makefs
+mkdir root
+# the -t 2 and -b 1024 are superfluous, as those are the defaults
+./makefs.py -v -t 2 -s 128M -l $HOME/bin/lwext4-mkfs \
+        -b 1024 fs.std.img root
+cp fs.std.img ~/phoenix/fileserver/deploy/fs/srv/
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/fileserver/deploy/manifest.conf \
+        -t $PWD -v -o nextfsserver 
+
+# run
+mv manifest.sgx nextfsserver.manifest.sgx
+./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
+        -b bdstd /etc/clash /srv/fs.std.img
+```
+
+
+Package the smdish shared memory server:
+```
+# copy over the key material
+cp config/root.crt ~/phoenix/memserver/smdish/
+cp config/proc.crt ~/phoenix/memserver/smdish/
+cp config/proc.key ~/phoenix/memserver/smdish/
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/memserver/deploy/smdishserver.conf \
+        -t $PWD -v -o smdishserver
+
+# run
+cd smdishserver
+mv manifest.sgx smdishserver.manifest.sgx
+./smdishserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key /etc/ramones
+```
+
+Package the key server:
+```
+# copy the NGINX SSL private key
+cp config/mounts/nginx/conf/server.key ~/phoenix/keyserver/server/
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/keyserver/deploy/manifest.conf \
+        -t $PWD -v -o nsmserver 
+cd nsmserver
+mv manifest.sgx nsmserver.manifest.sgx
+
+# run
+./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9000
+```
+
+Package NGINX:
+```
+cd ~/phoenix/phoenix-nginx-eval
+make single-tenant/graphene-cache-nomodsec-release_nextfs-smdish-nsm
+cd pkg/single-tenant/graphene-cache-nomodsec-release_nextfs-smdish-nsm
+mv manifest.sgx nginx.manifest.sgx
+./nginx.manifest.sgx -p /nginx
+```
+
+### graphene-bdstd-smuf-nonsm
+
+Package the nextfs file server with bdstd block device:
+```
+# copy over the key material
+cp config/root.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.key ~/phoenix/fileserver/deploy/fs/srv/
+
+# create filesystem
+cd ~/phoenix/fileserver/makefs
+mkdir root
+# the -t 2 and -b 1024 are superfluous, as those are the defaults
+./makefs.py -v -t 2 -s 128M -l $HOME/bin/lwext4-mkfs \
+        -b 1024 fs.std.img root
+cp fs.std.img ~/phoenix/fileserver/deploy/fs/srv/
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/fileserver/deploy/manifest.conf \
+        -t $PWD -v -o nextfsserver 
+
+# run
+mv manifest.sgx nextfsserver.manifest.sgx
+./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
+        -b bdstd /etc/clash /srv/fs.std.img
+```
+
+Package the smuf memory server:
+```
+# copy key material
+cp config/root.crt ~/phoenix/memserver/smuf/
+cp config/proc.crt ~/phoenix/memserver/smuf/
+cp config/proc.key ~/phoenix/memserver/smuf/
+
+# reset the memfile dir
+rm -rf ~/phoenix/memfiles/0
+mkdir ~/phoenix/memfiles/0
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/memserver/deploy/smufserver.conf \
+        -t $PWD -v -o smufserver
+cd smufserver
+mv manifest.sgx smufserver.manifest.sgx
+
+# run
+./smufserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key -r /memfiles0 /etc/ramones
+```
+
+
+Package NGINX:
+```
+cd ~/phoenix/phoenix-nginx-eval
+make single-tenant/graphene-cache-nomodsec-release_nextfs-smuf-nonsm
+cd pkg/single-tenant/graphene-cache-nomodsec-release_nextfs-smuf-nonsm
+mv manifest.sgx nginx.manifest.sgx
+./nginx.manifest.sgx -p /nginx
+```
+
+### graphene-bdstd-smuf-nsm
+
+Package the nextfs file server with bdstd block device:
+```
+# copy over the key material
+cp config/root.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.key ~/phoenix/fileserver/deploy/fs/srv/
+
+# create filesystem
+cd ~/phoenix/fileserver/makefs
+mkdir root
+# the -t 2 and -b 1024 are superfluous, as those are the defaults
+./makefs.py -v -t 2 -s 128M -l $HOME/bin/lwext4-mkfs \
+        -b 1024 fs.std.img root
+cp fs.std.img ~/phoenix/fileserver/deploy/fs/srv/
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/fileserver/deploy/manifest.conf \
+        -t $PWD -v -o nextfsserver 
+
+# run
+mv manifest.sgx nextfsserver.manifest.sgx
+./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
+        -b bdstd /etc/clash /srv/fs.std.img
+```
+
+Package the smuf memory server:
+```
+# copy key material
+cp config/root.crt ~/phoenix/memserver/smuf/
+cp config/proc.crt ~/phoenix/memserver/smuf/
+cp config/proc.key ~/phoenix/memserver/smuf/
+
+# reset the memfile dir
+rm -rf ~/phoenix/memfiles/0
+mkdir ~/phoenix/memfiles/0
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/memserver/deploy/smufserver.conf \
+        -t $PWD -v -o smufserver
+cd smufserver
+mv manifest.sgx smufserver.manifest.sgx
+
+# run
+./smufserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key -r /memfiles0 /etc/ramones
+```
+
+Package the key server:
+```
+# copy the NGINX SSL private key
+cp config/mounts/nginx/conf/server.key ~/phoenix/keyserver/server/
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/keyserver/deploy/manifest.conf \
+        -t $PWD -v -o nsmserver 
+cd nsmserver
+mv manifest.sgx nsmserver.manifest.sgx
+
+# run
+./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9000
+```
+
+Package NGINX:
+```
+cd ~/phoenix/phoenix-nginx-eval
+make single-tenant/graphene-cache-nomodsec-release_nextfs-smuf-nsm
+cd pkg/single-tenant/graphene-cache-nomodsec-release_nextfs-smuf-nsm
+mv manifest.sgx nginx.manifest.sgx
+./nginx.manifest.sgx -p /nginx
+```
+
+### graphene-bdstd-smc-nonsm
+
+Package the nextfs file server with bdstd block device:
+```
+# copy over the key material
+cp config/root.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.key ~/phoenix/fileserver/deploy/fs/srv/
+
+# create filesystem
+cd ~/phoenix/fileserver/makefs
+mkdir root
+# the -t 2 and -b 1024 are superfluous, as those are the defaults
+./makefs.py -v -t 2 -s 128M -l $HOME/bin/lwext4-mkfs \
+        -b 1024 fs.std.img root
+cp fs.std.img ~/phoenix/fileserver/deploy/fs/srv/
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/fileserver/deploy/manifest.conf \
+        -t $PWD -v -o nextfsserver 
+
+# run
+mv manifest.sgx nextfsserver.manifest.sgx
+./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
+        -b bdstd /etc/clash /srv/fs.std.img
+```
+
+Prepare the chroot mount used for smc's shared memory:
+```
+# reset the memfile dir
+rm -rf ~/phoenix/memfiles/0
+mkdir ~/phoenix/memfiles/0
+```
+
+Package NGINX:
+```
+cd ~/phoenix/phoenix-nginx-eval
+make single-tenant/graphene-cache-nomodsec-release_nextfs-smc-nonsm
+cd pkg/single-tenant/graphene-cache-nomodsec-release_nextfs-smc-nonsm
+mv manifest.sgx nginx.manifest.sgx
+./nginx.manifest.sgx -p /nginx
+```
+
+### graphene-bdstd-smc-nsm
+
+Package the nextfs file server with bdstd block device:
+```
+# copy over the key material
+cp config/root.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.key ~/phoenix/fileserver/deploy/fs/srv/
+
+# create filesystem
+cd ~/phoenix/fileserver/makefs
+mkdir root
+# the -t 2 and -b 1024 are superfluous, as those are the defaults
+./makefs.py -v -t 2 -s 128M -l $HOME/bin/lwext4-mkfs \
+        -b 1024 fs.std.img root
+cp fs.std.img ~/phoenix/fileserver/deploy/fs/srv/
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/fileserver/deploy/manifest.conf \
+        -t $PWD -v -o nextfsserver 
+
+# run
+mv manifest.sgx nextfsserver.manifest.sgx
+./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
+        -b bdstd /etc/clash /srv/fs.std.img
+```
+
+Prepare the chroot mount used for smc's shared memory:
+```
+# reset the memfile dir
+rm -rf ~/phoenix/memfiles/0
+mkdir ~/phoenix/memfiles/0
+```
+
+Package the key server:
+```
+# copy the NGINX SSL private key
+cp config/mounts/nginx/conf/server.key ~/phoenix/keyserver/server/
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/keyserver/deploy/manifest.conf \
+        -t $PWD -v -o nsmserver 
+cd nsmserver
+mv manifest.sgx nsmserver.manifest.sgx
+
+# run
+./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9000
+```
+
+Package NGINX:
+```
+cd ~/phoenix/phoenix-nginx-eval
+make single-tenant/graphene-cache-nomodsec-release_nextfs-smc-nsm
+cd pkg/single-tenant/graphene-cache-nomodsec-release_nextfs-smc-nsm
+mv manifest.sgx nginx.manifest.sgx
+./nginx.manifest.sgx -p /nginx
+```
+
+### graphene-bdcrypt-smdish-nonsm
+
+Package the nextfs file server with bdstd block device:
+```
+# copy over the key material
+cp config/root.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.key ~/phoenix/fileserver/deploy/fs/srv/
+
+# create filesystem
+cd ~/phoenix/fileserver/makefs
+mkdir root
+# the -t, -b, and -c flags are superfluous, as those are the defaults
+./makefs.py -v -t 2 -s 128M -l $HOME/bin/lwext4-mkfs \
+        -b 1024 -c aes-256-xts -p encpassword fs.crypt.xts.img root
+cp fs.crypt.xts.img ~/phoenix/fileserver/deploy/fs/srv/
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/fileserver/deploy/manifest.conf \
+        -t $PWD -v -o nextfsserver 
+
+# run
+mv manifest.sgx nextfsserver.manifest.sgx
+./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
+        -b bdcrypt:encpassword:aes-256-cbc /etc/clash /srv/fs.crypt.xts.img
+```
+
+
+Package the smdish shared memory server:
+```
+# copy over the key material
+cp config/root.crt ~/phoenix/memserver/smdish/
+cp config/proc.crt ~/phoenix/memserver/smdish/
+cp config/proc.key ~/phoenix/memserver/smdish/
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/memserver/deploy/smdishserver.conf \
+        -t $PWD -v -o smdishserver
+
+# run
+cd smdishserver
+mv manifest.sgx smdishserver.manifest.sgx
+./smdishserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key /etc/ramones
+```
+
+Package NGINX:
+```
+cd ~/phoenix/phoenix-nginx-eval
+make single-tenant/graphene-cache-nomodsec-release_nextfs-smdish-nonsm
+cd pkg/single-tenant/graphene-cache-nomodsec-release_nextfs-smdish-nonsm
+mv manifest.sgx nginx.manifest.sgx
+./nginx.manifest.sgx -p /nginx
+```
+
+yada yada yada
+
+### graphene-bdverity-smdish-nonsm
+
+Package the nextfs file server with bdstd block device:
+```
+# copy over the key material
+cp config/root.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.key ~/phoenix/fileserver/deploy/fs/srv/
+
+# create filesystem
+cd ~/phoenix/fileserver/makefs
+mkdir root
+# (the -t and -b flags are superfluous, as those are the defaults)
+./makefs.py -v -t 2 -s 128M -l $HOME/bin/lwext4-mkfs \
+        -b 1024 fs.std.img root
+cp fs.std.img ~/phoenix/fileserver/deploy/fs/srv/
+
+# make the merkle tree file
+# (the -a and -b flags are superfluous, as those are the defaults)
+./makemerkle.py -v -a sha256 -b 1024 -k macpassword fs.std.img fs.std.mt
+cp fs.std.mt ~/phoenix/fileserver/deploy/fs/srv
+# root hash: 1845a98c4d4022fb080f8e2f33c60a297856bede1cf93c848c2029957b8e47d2
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/fileserver/deploy/manifest.conf \
+        -t $PWD -v -o nextfsserver 
+
+# run
+mv manifest.sgx nextfsserver.manifest.sgx
+./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
+        -b bdverity:/srv/fs.std.mt:macpassword:1845a98c4d4022fb080f8e2f33c60a297856bede1cf93c848c2029957b8e47d2 \
+        /etc/clash /srv/fs.std.img
+```
+
+
+Package the smdish shared memory server:
+```
+# copy over the key material
+cp config/root.crt ~/phoenix/memserver/smdish/
+cp config/proc.crt ~/phoenix/memserver/smdish/
+cp config/proc.key ~/phoenix/memserver/smdish/
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/memserver/deploy/smdishserver.conf \
+        -t $PWD -v -o smdishserver
+
+# run
+cd smdishserver
+mv manifest.sgx smdishserver.manifest.sgx
+./smdishserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key /etc/ramones
+```
+
+Package NGINX:
+```
+cd ~/phoenix/phoenix-nginx-eval
+make single-tenant/graphene-cache-nomodsec-release_nextfs-smdish-nonsm
+cd pkg/single-tenant/graphene-cache-nomodsec-release_nextfs-smdish-nonsm
+mv manifest.sgx nginx.manifest.sgx
+./nginx.manifest.sgx -p /nginx
 ```
 
 
@@ -206,9 +871,92 @@ The need to change the name of the manifest, as in
 mv manifest.sgx nginx.manifest.sgx
 ```
 
-## Absoluate vs Relative paths in `manifest.conf`
+## Absolute vs Relative paths in `manifest.conf`
 `makemanifest` inserts absolute paths for the exeuctable and read-only chroot
 mounts, but relative paths for the read-write chroot mounts.
 
+## nextfs
+One of the nginx processes (not the worker) fails with
+
+```
+assert failed fs/nextfs/fs.c:209 fs != ((void *)0) (value:0)
+```
+
+yada yada yada
+
+### graphene-bdvericrypt-smdish-nonsm
+
+Package the nextfs file server with bdstd block device:
+```
+# copy over the key material
+cp config/root.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.crt ~/phoenix/fileserver/deploy/fs/srv/
+cp config/proc.key ~/phoenix/fileserver/deploy/fs/srv/
+
+# create filesystem
+# the -t, -b, and -c flags are superfluous, as those are the defaults
+./makefs.py -v -t 2 -s 128M -l $HOME/bin/lwext4-mkfs \
+        -b 1024 -c aes-256-xts -p encpassword fs.crypt.xts.img root
+cp fs.crypt.xts.img ~/phoenix/fileserver/deploy/fs/srv/
+
+# make the merkle tree file
+# (the -a and -b flags are superfluous, as those are the defaults)
+./makemerkle.py -v -a sha256 -b 1024 -k macpassword fs.crypt.xts.img fs.crypt.xts.mt
+cp fs.crypt.xts.mt ~/phoenix/fileserver/deploy/fs/srv
+# root hash: 404438898db76e9afb60f52f2a9107ffaf991833bcba554f085a429a102775a5
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/fileserver/deploy/manifest.conf \
+        -t $PWD -v -o nextfsserver 
+
+# run
+mv manifest.sgx nextfsserver.manifest.sgx
+./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
+        -b bdvericrypt:/srv/fs.crypt.xts.mt:macpassword:404438898db76e9afb60f52f2a9107ffaf991833bcba554f085a429a102775a5:encpassword:aes-256-xts \
+        /etc/clash /srv/fs.crypt.xts.img
+```
 
 
+Package the smdish shared memory server:
+```
+# copy over the key material
+cp config/root.crt ~/phoenix/memserver/smdish/
+cp config/proc.crt ~/phoenix/memserver/smdish/
+cp config/proc.key ~/phoenix/memserver/smdish/
+
+# package
+cd ~/phoenix/makemanifest
+./make_sgx.py -g ~/ws/phoenix -k enclave-key.pem \
+        -p ~/phoenix/memserver/deploy/smdishserver.conf \
+        -t $PWD -v -o smdishserver
+
+# run
+cd smdishserver
+mv manifest.sgx smdishserver.manifest.sgx
+./smdishserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key /etc/ramones
+```
+
+Package NGINX:
+```
+cd ~/phoenix/phoenix-nginx-eval
+make single-tenant/graphene-cache-nomodsec-release_nextfs-smdish-nonsm
+cd pkg/single-tenant/graphene-cache-nomodsec-release_nextfs-smdish-nonsm
+mv manifest.sgx nginx.manifest.sgx
+./nginx.manifest.sgx -p /nginx
+```
+
+
+## rpc
+Once in a blue moon, the enclaved NGINX application reports the error:
+
+```
+warn rapc_agent_request:414 rpc returned an error: 11: Unknown error
+```
+
+I think this is just contention on the lock, as 11 is `EAGAIN`.
+
+```
+There are  no TCS pages ...
+```
