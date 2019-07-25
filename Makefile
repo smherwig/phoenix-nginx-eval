@@ -216,3 +216,44 @@ single-tenant/graphene-cache-nomodsec-release_nonextfs-smuf-nsm:
 	$(MAKE_SGX) -t /home/smherwig/phoenix/makemanifest -g $(GRAPHENE) \
 		-k config/enclave_signing.key \
 		-p config/$@/manifest.conf -o pkg/$@ 
+
+
+# Multi-Tenant, "sharing-nothing", NGINX caching-server packaged deployments
+#
+# we configure four replicas
+#---------------------------------------------------------------------------
+multi-tenant/share-nothing/graphene-cache-nomodsec-release_nextfs-smdish-nsm \
+multi-tenant/share-nothing/graphene-cache-nomodsec-release_nextfs-smuf-nsm \
+multi-tenant/share-nothing/graphene-cache-nomodsec-release_nextfs-smc-nsm:
+	mkdir -p pkg/$@
+	(\
+		set -e; \
+		for i in 0 1 2 3; do \
+			cp -R config/mounts/* pkg/$@/$$i; \
+			cp config/$@/$$i/nginx.conf pkg/$@/$$i/nginx/conf/; \
+			$(MAKE_SGX) -t /home/smherwig/phoenix/makemanifest -g $(GRAPHENE) \
+				-k config/enclave_signing.key \
+				-p config/$@/$$i/manifest.conf -o pkg/$@; \
+		done; \
+	)
+
+
+# Multi-Tenant, "sharing-NGINX", NGINX caching-server packaged deployments
+#
+# The tenants are multiplexed on a single NGINX instance.  We have a separate
+# nginx.conf and manifest.conf for multiplexing 2, 3, and 4 tenants.
+#---------------------------------------------------------------------------
+multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smdish-nsm \
+multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smuf-nsm \
+multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smc-nsm:
+	mkdir -p pkg/$@
+	(\
+		set -e; \
+		for i in 0 1 2 3; do \
+			cp -R config/mounts/* pkg/$@/$$i; \
+			cp config/$@/$$i/nginx.conf pkg/$@/$$i/nginx/conf/; \
+			$(MAKE_SGX) -t /home/smherwig/phoenix/makemanifest -g $(GRAPHENE) \
+				-k config/enclave_signing.key \
+				-p config/$@/$$i/manifest.conf -o pkg/$@; \
+		done; \
+	)

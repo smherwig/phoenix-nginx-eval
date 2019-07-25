@@ -861,9 +861,6 @@ mv manifest.sgx nginx.manifest.sgx
 ```
 
 
-
-# BUGS
-
 ## Changing `manifest.conf` name
 The need to change the name of the manifest, as in
 
@@ -947,6 +944,45 @@ mv manifest.sgx nginx.manifest.sgx
 ./nginx.manifest.sgx -p /nginx
 ```
 
+# Multi-Tenant Benchmarks
+
+
+## Share nothing
+For simplicity, we have all replicas use the same origin server, and use
+the same cert/key.
+
+Naming schemes for pipes:
+replico0:
+    MOUNT pipe:2201945198 /fsserver  nextfs     (/etc/clash0)
+    MOUNT pipe:267486944 /memserver mdish       (/etc/ramones0)
+    listen on 8440
+    keyserver listen on on 9000
+
+replica1:
+    MOUNT pipe:2202006382 /fsserver  nextfs     (/etc/clash1)
+    MOUNT pipe:921798368 /memserver mdish       (/etc/ramones1)
+    listen on 8441
+    keyserver listen on on 9001
+
+replica2:
+    MOUNT pipe:2202004078 /fsserver  nextfs     (/etc/clash2)
+    MOUNT pipe:569476832 /memserver mdish       (/etc/ramones2)
+    listen on 8442
+    keyserver listen on on 9002
+
+replica3:
+    MOUNT pipe:2202001774 /fsserver  nextfs     (/etc/clash3)
+    MOUNT pipe:686917344 /memserver mdish       (/etc/ramones3)
+    listen on 8443
+    keyserver listen on on 9003
+
+
+
+### 
+
+
+
+# BUGS
 
 ## rpc
 Once in a blue moon, the enclaved NGINX application reports the error:
