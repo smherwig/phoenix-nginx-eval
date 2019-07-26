@@ -229,11 +229,12 @@ multi-tenant/share-nothing/graphene-cache-nomodsec-release_nextfs-smc-nsm:
 	(\
 		set -e; \
 		for i in 0 1 2 3; do \
+			mkdir -p pkg/$@/$$i; \
 			cp -R config/mounts/* pkg/$@/$$i; \
 			cp config/$@/$$i/nginx.conf pkg/$@/$$i/nginx/conf/; \
 			$(MAKE_SGX) -t /home/smherwig/phoenix/makemanifest -g $(GRAPHENE) \
 				-k config/enclave_signing.key \
-				-p config/$@/$$i/manifest.conf -o pkg/$@; \
+				-p config/$@/$$i/manifest.conf -o pkg/$@/$$i; \
 		done; \
 	)
 
@@ -250,10 +251,11 @@ multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smc-nsm:
 	(\
 		set -e; \
 		for i in 0 1 2 3; do \
+			mkdir -p pkg/$@/$$i; \
 			cp -R config/mounts/* pkg/$@/$$i; \
 			cp config/$@/$$i/nginx.conf pkg/$@/$$i/nginx/conf/; \
 			$(MAKE_SGX) -t /home/smherwig/phoenix/makemanifest -g $(GRAPHENE) \
 				-k config/enclave_signing.key \
-				-p config/$@/$$i/manifest.conf -o pkg/$@; \
+				-p config/$@/$$i/manifest.conf -o pkg/$@/$$i; \
 		done; \
 	)
