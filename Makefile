@@ -51,6 +51,18 @@ bases-linux: $(LINUX_BASES)
 bases-graphene: $(GRAPHENE_BASES)
 bases-all: $(LINUX_BASES) $(GRAPHENE_BASES)
 
+graphene-standalone-nomodsec-tls-only-release:
+	(\
+		set -e; \
+		cd nginx-1.14.1-tls-only; \
+		./configure \
+			--prefix=$(TOP)/builds/$@ \
+			$(COMMON_CFG_OPTS) \
+			$(STANDALONE_CFG_OPTS); \
+		make; \
+		make install; \
+	)
+
 # Base Linux builds of NGINX
 #----------------------------------------------------------
 linux-standalone-nomodsec-debug:
@@ -182,6 +194,17 @@ single-tenant/linux-cache-nomodsec-release_nsm:
 	cp -R config/mounts/nginx pkg/$@
 	cp config/$@/nginx.conf pkg/$@/nginx/conf
 	cp builds/linux-cache-nomodsec-release/sbin/nginx pkg/$@/nginx/sbin/
+
+
+# Single-Tenant NGINX server packaged deployments
+#----------------------------------------------------------
+standalone/graphene-standalone-nomodsec-release_nextfs-nsm:
+	mkdir -p pkg/$@
+	cp -R config/mounts/* pkg/$@
+	cp config/$@/nginx.conf pkg/$@/nginx/conf
+	$(MAKE_SGX) -t /home/smherwig/phoenix/makemanifest -g $(GRAPHENE) \
+		-k config/enclave_signing.key \
+		-p config/$@/manifest.conf -o pkg/$@ 
 
 
 # Single-Tenant NGINX caching-server packaged deployments

@@ -142,7 +142,7 @@ cd ~/phoenix/makemanifest
         -t $PWD -v -o nsmserver
 cd nsmserver
 mv manifest.sgx nsmserver.manifest.sgx
-./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:900
+./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9000
 ```
 
 ```
@@ -761,7 +761,7 @@ cd ~/phoenix/makemanifest
 # run
 mv manifest.sgx nextfsserver.manifest.sgx
 ./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
-        -b bdcrypt:encpassword:aes-256-cbc /etc/clash /srv/fs.crypt.xts.img
+        -b bdcrypt:encpassword:aes-256-xts /etc/clash /srv/fs.crypt.xts.img
 ```
 
 
