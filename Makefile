@@ -3,7 +3,9 @@
 TOP=$(PWD)
 NGINX= nginx-1.14.1
 NGINX_GRAPHENE= nginx-1.14.1-graphene
+NGINX_TLS_ONLY= nginx-1.14.1-tls-only
 GRAPHENE=/home/smherwig/ws/phoenix
+
 
 
 # TOOLS
@@ -19,7 +21,10 @@ COMMON_CFG_OPTS= \
     --without-http_upstream_ip_hash_module \
     --without-http_upstream_least_conn_module \
     --without-http_upstream_keepalive_module \
-    --without-http_upstream_zone_module
+    --without-http_upstream_zone_module \
+	--without-stream_upstream_hash_module \
+	--without-stream_upstream_least_conn_module \
+	--without-stream_upstream_zone_module 
 
 STANDALONE_CFG_OPTS= --without-http-cache
 
@@ -36,13 +41,15 @@ LINUX_BASES = \
 	linux-standalone-nomodsec-debug \
 	linux-standalone-nomodsec-release \
 	linux-cache-nomodsec-debug \
-	linux-cache-nomodsec-release
+	linux-cache-nomodsec-release \
+	linux-standalone-modsec-release
 
 GRAPHENE_BASES = \
 	graphene-standalone-nomodsec-debug \
 	graphene-standalone-nomodsec-release \
 	graphene-cache-nomodsec-debug \
-	graphene-cache-nomodsec-release
+	graphene-cache-nomodsec-release \
+	graphene-standalone-modsec-release
 
 
 # Base builds
@@ -62,6 +69,21 @@ graphene-standalone-nomodsec-tls-only-release:
 		make; \
 		make install; \
 	)
+
+
+graphene-standalone-modsec-tls-only-release:
+	(\
+		set -e; \
+		cd nginx-1.14.1-tls-only; \
+		./configure \
+			--prefix=$(TOP)/builds/$@ \
+			$(COMMON_CFG_OPTS) \
+			$(STANDALONE_CFG_OPTS) \
+			$(MODSEC_CFG_OPTS); \
+		make; \
+		make install; \
+	)
+
 
 # Base Linux builds of NGINX
 #----------------------------------------------------------
@@ -109,6 +131,19 @@ linux-cache-nomodsec-release:
 		./configure \
 			--prefix=$(TOP)/builds/$@ \
 			$(COMMON_CFG_OPTS); \
+		make; \
+		make install; \
+	)
+
+linux-standalone-modsec-release:
+	(\
+		set -e; \
+		cd $(NGINX); \
+		./configure \
+			--prefix=$(TOP)/builds/$@ \
+			$(COMMON_CFG_OPTS) \
+			$(STANDALONE_CFG_OPTS) \
+			$(MODSEC_CFG_OPTS); \
 		make; \
 		make install; \
 	)
@@ -169,6 +204,35 @@ graphene-cache-nomodsec-release:
 		make install; \
 	)
 
+graphene-standalone-modsec-debug:
+	(\
+		set -e; \
+		cd $(NGINX_GRAPHENE); \
+		./configure \
+			--prefix=$(TOP)/builds/$@ \
+			$(COMMON_CFG_OPTS) \
+			$(STANDALONE_CFG_OPTS) \
+			$(DEBUG_CFG_OPTS) \
+			$(MODSEC_CFG_OPTS); \
+		$(TOP)/patch/patch-ngx_auto_config.py objs/ngx_auto_config.h; \
+		make; \
+		make install; \
+	)
+
+graphene-standalone-modsec-release:
+	(\
+		set -e; \
+		cd $(NGINX_GRAPHENE); \
+		./configure \
+			--prefix=$(TOP)/builds/$@ \
+			$(COMMON_CFG_OPTS) \
+			$(STANDALONE_CFG_OPTS) \
+			$(MODSEC_CFG_OPTS); \
+		$(TOP)/patch/patch-ngx_auto_config.py objs/ngx_auto_config.h; \
+		make; \
+		make install; \
+	)
+
 
 # Origin server packaged deployments (used for all deployments)
 #----------------------------------------------------------
@@ -185,15 +249,26 @@ single-tenant/linux-cache-nomodsec-debug_nonsm \
 single-tenant/linux-cache-nomodsec-debug_nsm:
 	mkdir -p pkg/$@
 	cp -R config/mounts/nginx pkg/$@
-	cp config/$@/nginx.conf pkg/$@/nginx/conf
+	cp config/$@/nginx.conf pkg/$@/nginx/conf/
 	cp builds/linux-cache-nomodsec-debug/sbin/nginx pkg/$@/nginx/sbin/
 
 single-tenant/linux-cache-nomodsec-release_nonsm \
 single-tenant/linux-cache-nomodsec-release_nsm:
 	mkdir -p pkg/$@
 	cp -R config/mounts/nginx pkg/$@
-	cp config/$@/nginx.conf pkg/$@/nginx/conf
+	cp config/$@/nginx.conf pkg/$@/nginx/conf/
 	cp builds/linux-cache-nomodsec-release/sbin/nginx pkg/$@/nginx/sbin/
+
+
+# Standalone Linux modsecurity server packaged deployments
+#--------------------------------------------------------------------
+standalone/linux-standalone-modsec-release_nonsm:
+	mkdir -p pkg/$@
+	cp -R config/mounts/nginx pkg/$@
+	cp config/$@/nginx.conf pkg/$@/nginx/conf/
+	cp builds/linux-standalone-modsec-release/sbin/nginx pkg/$@/nginx/sbin/
+	cp builds/linux-standalone-modsec-release/modules/ngx_http_modsecurity_module.so \
+		pkg/$@/nginx/modules/
 
 
 # Single-Tenant NGINX server packaged deployments
@@ -202,6 +277,41 @@ standalone/graphene-standalone-nomodsec-release_nextfs-nsm:
 	mkdir -p pkg/$@
 	cp -R config/mounts/* pkg/$@
 	cp config/$@/nginx.conf pkg/$@/nginx/conf
+	$(MAKE_SGX) -t /home/smherwig/phoenix/makemanifest -g $(GRAPHENE) \
+		-k config/enclave_signing.key \
+		-p config/$@/manifest.conf -o pkg/$@ 
+
+# Standalone Graphene modsecurity server packaged deployments
+#--------------------------------------------------------------------
+standalone/graphene-standalone-modsec-release_nextfs-smc-nonsm:
+	mkdir -p pkg/$@
+	cp -R config/mounts/* pkg/$@
+	cp config/$@/nginx.conf pkg/$@/nginx/conf/
+	cp builds/graphene-standalone-modsec-release/modules/ngx_http_modsecurity_module.so \
+		pkg/$@/nginx/modules/
+	$(MAKE_SGX) -t /home/smherwig/phoenix/makemanifest -g $(GRAPHENE) \
+		-k config/enclave_signing.key \
+		-p config/$@/manifest.conf -o pkg/$@ 
+
+
+# Standalone Graphene modsecurity server packaged deployments
+#--------------------------------------------------------------------
+standalone/graphene-standalone-modsec-debug_nextfs-smc-nonsm:
+	mkdir -p pkg/$@
+	cp -R config/mounts/* pkg/$@
+	cp config/$@/nginx.conf pkg/$@/nginx/conf/
+	cp builds/graphene-standalone-modsec-debug/modules/ngx_http_modsecurity_module.so \
+		pkg/$@/nginx/modules/
+	$(MAKE_SGX) -t /home/smherwig/phoenix/makemanifest -g $(GRAPHENE) \
+		-k config/enclave_signing.key \
+		-p config/$@/manifest.conf -o pkg/$@ 
+
+standalone/graphene-standalone-modsec-tls-only-release_nonextfs-nosm-nonsm:
+	mkdir -p pkg/$@
+	cp -R config/mounts/* pkg/$@
+	cp config/$@/nginx.conf pkg/$@/nginx/conf/
+	cp builds/graphene-standalone-modsec-tls-only-release/modules/ngx_http_modsecurity_module.so \
+		pkg/$@/nginx/modules/
 	$(MAKE_SGX) -t /home/smherwig/phoenix/makemanifest -g $(GRAPHENE) \
 		-k config/enclave_signing.key \
 		-p config/$@/manifest.conf -o pkg/$@ 
@@ -251,7 +361,7 @@ multi-tenant/share-nothing/graphene-cache-nomodsec-release_nextfs-smc-nsm:
 	mkdir -p pkg/$@
 	(\
 		set -e; \
-		for i in 0 1 2 3; do \
+		for i in 0 1 2 3 4 5 6 7; do \
 			mkdir -p pkg/$@/$$i; \
 			cp -R config/mounts/* pkg/$@/$$i; \
 			cp config/$@/$$i/nginx.conf pkg/$@/$$i/nginx/conf/; \
@@ -260,6 +370,23 @@ multi-tenant/share-nothing/graphene-cache-nomodsec-release_nextfs-smc-nsm:
 				-p config/$@/$$i/manifest.conf -o pkg/$@/$$i; \
 		done; \
 	)
+
+# Multi-Tenant, "sharing-NGINX", NGINX caching-server packaged deployments
+#
+# The tenants are multiplexed on a single NGINX instance.  We have a separate
+# nginx.conf and manifest.conf for multiplexing 2, 3, and 4 tenants.
+#---------------------------------------------------------------------------
+multi-tenant/share-nginx/linux-cache-nomodsec-release_nonsm:
+	mkdir -p pkg/$@
+	(\
+		set -e; \
+		for i in 0 1 2 3 4 5 6 7; do \
+			mkdir -p pkg/$@/$$i; \
+			cp -R config/mounts/nginx pkg/$@/$$i; \
+			cp config/$@/$$i/nginx.conf pkg/$@/$$i/nginx/conf/; \
+			cp builds/linux-cache-nomodsec-release/sbin/nginx pkg/$@/$$i/nginx/sbin/; \
+		done; \
+	) 
 
 
 # Multi-Tenant, "sharing-NGINX", NGINX caching-server packaged deployments
@@ -269,11 +396,12 @@ multi-tenant/share-nothing/graphene-cache-nomodsec-release_nextfs-smc-nsm:
 #---------------------------------------------------------------------------
 multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smdish-nsm \
 multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smuf-nsm \
+multi-tenant/share-nginx/graphene-cache-nomodsec-debug_nextfs-smc-nsm \
 multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smc-nsm:
 	mkdir -p pkg/$@
 	(\
 		set -e; \
-		for i in 0 1 2 3; do \
+		for i in 0 1 2 3 4 5; do \
 			mkdir -p pkg/$@/$$i; \
 			cp -R config/mounts/* pkg/$@/$$i; \
 			cp config/$@/$$i/nginx.conf pkg/$@/$$i/nginx/conf/; \
@@ -281,4 +409,4 @@ multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smc-nsm:
 				-k config/enclave_signing.key \
 				-p config/$@/$$i/manifest.conf -o pkg/$@/$$i; \
 		done; \
-	)
+	) 

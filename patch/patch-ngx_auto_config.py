@@ -16,7 +16,9 @@ _USAGE = """
 
 _defs_to_zero = (
     '#define NGX_HAVE_GCC_ATOMIC',
-    '#define NGX_HAVE_POSIX_SEM'
+    '#define NGX_HAVE_POSIX_SEM',
+    '#define NGX_HTTP_UPSTREAM_ZONE',
+    '#define NGX_STREAM_UPSTREAM_ZONE'
     )
 
 def _usage(errcode):

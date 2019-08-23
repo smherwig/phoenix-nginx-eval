@@ -978,8 +978,19 @@ replica3:
 
 
 
-### 
 
+# ModSecurity Benchmarks
+
+To test that the rules are working (using first rule in
+`modsec/main-10000rule.conf`):
+
+```
+# should return 1k.txt
+curl -i -s --insecure https://192.168.99.10:8443/1k.txt
+
+# should return a '403 Forbidden' page
+curl -i -s --insecure https://192.168.99.10:8443/1k.txt?testparam=HMCYeR
+```
 
 
 # BUGS
