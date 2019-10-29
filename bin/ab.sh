@@ -3,8 +3,8 @@
 # Throughput is the mean throughput, measured in requests per seconds
 # Latency is the mean latency, measure in milliseconds
 
-REQUESTS=1000
-CONCURRENCY=8
+REQUESTS=10000
+CONCURRENCY=128
 
 URL=$1
 RESULT=$2
