@@ -283,7 +283,8 @@ standalone/graphene-standalone-nomodsec-release_nextfs-nsm:
 
 # Standalone Graphene modsecurity server packaged deployments
 #--------------------------------------------------------------------
-standalone/graphene-standalone-modsec-release_nextfs-smc-nonsm:
+standalone/graphene-standalone-modsec-release_nextfs-smc-nonsm \
+standalone/graphene-standalone-modsec-release_nextfs-smc-nsm:
 	mkdir -p pkg/$@
 	cp -R config/mounts/* pkg/$@
 	cp config/$@/nginx.conf pkg/$@/nginx/conf/
