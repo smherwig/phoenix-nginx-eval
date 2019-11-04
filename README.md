@@ -343,16 +343,28 @@ same webserver certificate and key.
 Linux (shared NGINX)
 --------------------
 
+```
+cd ~/nginx-eval
+make multi-tenant/share-nginx/linux-cache-nomodsec-release_nonsm
+```
+
 
 Graphene-crypt (shared NGINX)
 -----------------------------
 
+```
+cd ~/nginx-eval
+make multi-tenant/share-nginx/graphene-cache-nomodsec-debug_nextfs-smc-nsm
+```
 
 
 Graphene-crypt (shared nothing)
 -------------------------------
 
-
+```
+cd ~/nginx-eval
+make multi-tenant/share-nothing/graphene-cache-nomodsec-release_nextfs-smc-nsm
+```
 
 
 Web Application Firewall
@@ -362,8 +374,16 @@ Web Application Firewall
 Linux
 -----
 
+```
+cd ~/nginx-eval
+make standalone/linux-standalone-modsec-release_nonsm:
+```
+
 
 Graphene-crypt
 --------------
 
-
+```
+cd ~/nginx-eval
+make standalone/graphene-standalone-modsec-release_nextfs-smc-nsm:
+```
