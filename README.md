@@ -513,7 +513,6 @@ cd ~/src/makemanifest/nextfsserver
         -b bdcrypt:encpassword:aes-256-xts /etc/clash0 /srv/fs.crypt.img0
 
 # In a different terminal, run website 1's fileserver:
-cd ~/src/makemanifest/nextfsserver
 ./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
         -b bdcrypt:encpassword:aes-256-xts /etc/clash1 /srv/fs.crypt.img1
 ```
@@ -527,7 +526,6 @@ cd ~/src/makemanifest/nsmserver
 ./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9000
 
 # In a different terminal, run website 1's keyserver:
-cd ~/src/makemanifest/nsmserver
 ./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9001
 ```
 
@@ -595,7 +593,7 @@ cd ~/src/makemanifest/nsmserver
 ./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9001
 ```
 
-Ru twon intances of NGINX:
+Run two intances of NGINX:
 
 ```
 # Run website 0's NGINX:
@@ -615,9 +613,83 @@ cd ~/nginx-evalpkg/multi-tenant/share-nginx/graphene-cache-nomodsec-release_next
 <a name="waf-linux"/> Linux
 ---------------------------
 
+Package the NGINX:
+
 ```
 cd ~/nginx-eval
 make standalone/linux-standalone-modsec-release_nonsm:
+```
+
+Adjust the number of modsec rules:
+
+```
+cd pkg/standalone/linux-standalone-modsec-release_nonsm/nginx
+```
+
+At the bottom of `conf/nginx.conf` is a line:
+
+```
+modsecurity_rules_file modsec/main-10000rule.conf;
+```
+
+This represents a WAF with 10,000 rules.  Change this line
+to point to any file in `modsec/` (e.g., `modsec/man-1rule.conf`)
+has only one rule.
+
+Each rule simply examines a `testparam` argument in the HTTP request's query
+string for a blacklisted substring:
+
+```
+head modsec/main-10000rule.conf
+Include "modsec/modsecurity.conf"
+SecRule ARGS:testparam "@contains HMCYeR" "id:1,deny,status:403"
+SecRule ARGS:testparam "@contains XJczZQ" "id:2,deny,status:403"
+SecRule ARGS:testparam "@contains uvfkuJ" "id:3,deny,status:403"
+SecRule ARGS:testparam "@contains WxPaOo" "id:4,deny,status:403"
+SecRule ARGS:testparam "@contains NUtVcj" "id:5,deny,status:403"
+SecRule ARGS:testparam "@contains YjoIAv" "id:6,deny,status:403"
+SecRule ARGS:testparam "@contains wbMdAv" "id:7,deny,status:403"
+SecRule ARGS:testparam "@contains gnNqbS" "id:8,deny,status:403"
+SecRule ARGS:testparam "@contains IBzlNg" "id:9,deny,status:403"
+```
+
+Run NGINX:
+
+```
+./sbin/nginx -p $PWD
+```
+
+To test that the `main-10000rule.conf` is active, ensure that a query with a
+blacklisted substring returns `403 Forbidden`:
+
+```
+curl --insecure https://127.0.0.1:8443/1k.txt?testparam=aaaHMCYeRaaa
+<html>
+<head><title>403 Forbidden</title></head>
+<body bgcolor="white">
+<center><h1>403 Forbidden</h1></center>
+<hr><center>nginx/1.14.1</center>
+</body>
+</html>
+smherwig@smherwig-sgx:~$ 
+```
+
+and that a query for non-blacklisted substring returns valid content:
+
+```
+curl --insecure https://127.0.0.1:8443/1k.txt
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghij
+```
+
+
+To run NGINX without ModSecurity, comment out the following lines in
+`conf/nginx.conf`:
+
+```
+load_module modules/ngx_http_modsecurity_module.so
+
+modsecurity on;
+modsecurity_rules_file modsec/main-10000rule.conf
 ```
 
 
