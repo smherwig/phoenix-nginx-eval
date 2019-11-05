@@ -4,7 +4,7 @@
 # Download and build ModSecurity 3.0.
 #
 # Building with curl brings in a lot of shared library dependencies.  It seems
-# that Graphene has a bug when running the init (i.e., the consturctor) for one
+# that Graphene has a bug when running the init (i.e., the constructor) for one
 # of these libraries; however, I have not been able to isolate the bug just
 # yet.
 #
@@ -21,13 +21,3 @@ git submodule update
 ./configure --without-curl
 make
 sudo make install
-
-#
-# Download and ModSecurity-Nginx connector.
-#
-# (The connector is specified in NGINX's configure command and compiled as part
-# of the NGINX compilation.)
-#
-git clone --depth 1 \
-    https://github.com/SpiderLabs/ModSecurity-nginx.git
-
