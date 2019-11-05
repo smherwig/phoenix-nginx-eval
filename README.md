@@ -438,17 +438,19 @@ same webserver certificate and key.
 The edge server multiplexes multiple websites on a single instance of NGINX.
 
 
-Package the NGINX webserver
+Package the NGINX webserver:
 
 ```
 cd ~/nginx-eval
 make multi-tenant/share-nginx/linux-cache-nomodsec-release_nonsm
 ```
 
+Go to the package directory:
+
 ```
 cd pkg/multi-tenant/share-nginx/linux-cache-nomodsec-release_nonsm
 ls
-0 1 2 3 4 5 6 7
+0 1 2 3 4 5
 ```
 
 The directory `0` multiplexes a single website, the directory `1` multiplexes
@@ -458,16 +460,84 @@ two websites, and so forth.  All websites use the same
 however, that each website has its own web cache.  The first website
 listens on `*:8440`, the second on `*:8441`, and so forth. 
 
-To benchmark, simultaneously run [ApacheBench](#apache-bench) against each
+To benchmark, run the desired webserver:
+
+```
+cd 4/nginx
+./sbin/nginx -p $PWD
+```
+and simultaneously run [ApacheBench](#apache-bench) against each
 website (that is, for four websites, run four instances of ApacheBench).
 
 
 <a name="multi-tenant-graphene-crypt-shared-nginx"/> Graphene-crypt (shared NGINX)
 ----------------------------------------------------------------------------------
 
+Package the NGINX webserver:
+
 ```
 cd ~/nginx-eval
 make multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smc-nsm
+```
+
+Go to the package directory:
+
+```
+cd pkg/multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smc-nsm/
+ls
+0 1 2 3 4 5
+```
+
+The directories `0` - `5` are the same as for
+[Linux (shared NGINX)](#multi-tenant-linux-shared-nginx).  Note, however, that
+each website will have its own fileserver, keyserver, and directory where sm-crypt
+stores the share memory files.
+
+Let's go through the case of NGINX multiplexing two websites.  First create two
+file system images, as per, an call one `fs.crypt.img0` and the other
+`fs.crypt.img1`.  Copy these images to the fileserver's mount (we'll have
+the two fileservers mount the same host directory:
+
+```
+cp fs.crypt.img0 ~/src/fileserver/deploy/fs/srv/
+cp fs.crypt.img1 ~/src/fileserver/deploy/fs/srv/
+```
+
+Run two instances of the fileserver:
+
+```
+# Run website 0's fileserver:
+
+cd ~/src/makemanifest/nextfsserver
+./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
+        -b bdcrypt:encpassword:aes-256-xts /etc/clash0 /srv/fs.crypt.img0
+
+# In a different terminal, run website 1's fileserver:
+
+cd ~/src/makemanifest/nextfsserver
+./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
+        -b bdcrypt:encpassword:aes-256-xts /etc/clash1 /srv/fs.crypt.img1
+```
+
+Next, run a keyserver for each website:
+
+
+```
+#Run website 0's keyserver:
+
+cd ~/src/makemanifest/nsmserver
+./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9000
+
+# In a different terminal, run website 1's keyserver:
+cd ~/src/makemanifest/nsmserver
+./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9001
+```
+
+Run NGINX:
+
+```
+cd ~/nginx-evalpkg/multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smc-nsm/1
+./nginx.manifest.sgx -p /nginx
 ```
 
 
