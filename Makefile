@@ -309,7 +309,7 @@ multi-tenant/share-nginx/linux-cache-nomodsec-release_nonsm:
 	mkdir -p pkg/$@
 	(\
 		set -e; \
-		for i in 0 1 2 3 4 5 6 7; do \
+		for i in 0 1 2 3 4 5; do \
 			mkdir -p pkg/$@/$$i; \
 			cp -R config/mounts/nginx pkg/$@/$$i; \
 			cp config/$@/$$i/nginx.conf pkg/$@/$$i/nginx/conf/; \
@@ -352,7 +352,7 @@ multi-tenant/share-nothing/graphene-cache-nomodsec-release_nextfs-smc-nsm:
 	mkdir -p pkg/$@
 	(\
 		set -e; \
-		for i in 0 1 2 3 4 5 6 7; do \
+		for i in 0 1 2 3 4 5; do \
 			mkdir -p pkg/$@/$$i; \
 			cp -R config/mounts/* pkg/$@/$$i; \
 			cp config/$@/$$i/nginx.conf pkg/$@/$$i/nginx/conf/; \
@@ -386,6 +386,10 @@ standalone/graphene-standalone-modsec-release_nextfs-smc-nsm:
 		pkg/$@/nginx/modules/
 	$(MAKE_SGX) -t $(MAKEMANIFEST) -g $(GRAPHENE) -k $(ENCLAVE_KEY) \
 		-p config/$@/manifest.conf -o pkg/$@ 
+	mv pkg/$@/graphene-*manifest.sgx pkg/$@/nginx.manifest.sgx
+
+
+
 
 
 standalone/graphene-standalone-modsec-debug_nextfs-smc-nonsm:
@@ -396,9 +400,6 @@ standalone/graphene-standalone-modsec-debug_nextfs-smc-nonsm:
 		pkg/$@/nginx/modules/
 	$(MAKE_SGX) -t $(MAKEMANIFEST) -g $(GRAPHENE) -k $(ENCLAVE_KEY) \
 		-p config/$@/manifest.conf -o pkg/$@ 
-
-
-
 
 standalone/graphene-standalone-modsec-tls-only-release_nonextfs-nosm-nonsm:
 	mkdir -p pkg/$@
