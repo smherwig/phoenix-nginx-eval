@@ -167,7 +167,7 @@ To kill the origin, enter:
 
 ```
 cat logs/nignx.pid | xargs kill -TERM
-``
+```
 
 
 <a name="single-tenant"/> Single-Tenant
