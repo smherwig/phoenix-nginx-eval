@@ -26,9 +26,10 @@ bin/get_nginx.sh
 
 Afterwords, there are two new directories: `nginx-1.14.1`, which is the
 vanilla version of NGINX, and `nginx-1.14.1-graphene`, which is the
-patched version.  The pathced version side-steps a few bugs in Graphene-SGX and
-also foces the use of Phoenix's shared memory implementations.  See
-`patch/README` for further details about the patches. 
+patched version.  The patched version side-steps a few bugs in Graphene-SGX and
+also forces the use of Phoenix's shared memory implementations.  An important
+result of the patch is that NGINX only accepts HTTPS requests.
+See `patch/README` for further details.
 
 
 Download, build, and install `libmodsecurity.so`.  This library may already be
@@ -61,8 +62,8 @@ version of NGINX, configured as a caching server, without ModSecurity, and in
 release mode.
 
 
-NGINX TLS keys
---------------
+<a name="nginx-tls-keys"/> NGINX TLS keys
+-----------------------------------------
 
 For development purposes, self-signed certificate and private key are located
 at `config/mounts/nginx/conf/server.crt` and
@@ -71,8 +72,8 @@ at `config/mounts/nginx/conf/server.crt` and
 certificate and key and copy into `config/mounts/nginx/conf`.
 
 
-ApacheBench
------------
+<a name="apache-bench"/> ApacheBench
+------------------------------------
 
 We use the ApacheBench to benchmark the NGINX's request latency and throughput.
 macOS should have ApacheBench installed by default (`/usr/sbin/ab`).  On
@@ -196,8 +197,8 @@ cd pkg/single-tenant/linux-cache-nomodsec-release_nonsm/nginx
 ```
 
 
-Linux-keyless
--------------
+<a name="single-tenant-linux-keyless"/> Linux-keyless
+------------------------------------------------------
 
 Benchmark NGINX running on vanilla Linux using an enclaved keyserver.
 
@@ -233,8 +234,8 @@ cd pkg/single-tenant/linux-cache-nomodsec-release_nsm/nginx
 ./sbin/nginx -p $PWD
 ```
 
-Graphene-crypt
---------------
+<a name="single-tenant-graphene-crypt"/> Graphene-crypt
+-------------------------------------------------------
 
 Create bd-crypt filesystem image:
 
@@ -309,13 +310,22 @@ cd pkg/single-tenant/graphene-cache-nomodsec-release_nextfs-smc-nsm
 ```
 
 
-Graphene-crypt-exitless
------------------------
+<a name="single-tenant-graphene-crypt-exitless"/> Graphene-crypt-exitless
+-------------------------------------------------------------------------
+
+In the following manifests, specify the option `exitless` to the `THREADS`directive:
+
+- `~/nginx-eval/config/single-tenant/graphene-cache-nomodsec-release_nextfs-smc-nsm/manifest.conf`
+- `~/src/fileserver/deploy/manifest.conf`
+- `~/src/keyserver/deploy/manifest.conf`
+
+Now, repeat the same steps as for
+[Graphene-crypt](#single-tenant-graphene-crypt).
 
 
 
-Graphene-vericrypt
--------------------
+<a name="single-tenant-graphene-vericrypt"/> Graphene-vericrypt
+---------------------------------------------------------------
 
 Create bd-vericrypt filesystem image:
 
@@ -415,25 +425,45 @@ cd pkg/single-tenant/graphene-cache-nomodsec-release_nextfs-smuf-nsm
 ```
 
 
-Multi-tenant
-============
+<a name="multi-tenant"/> Multi-tenant
+=====================================
 
 For simplicity, we have all replicas use the same origin server, and use the
 same webserver certificate and key.
 
 
+<a name="multi-tenant-linux-shared-nginx"/> Linux (shared NGINX)
+----------------------------------------------------------------
 
-Linux (shared NGINX)
---------------------
+The edge server multiplexes multiple websites on a single instance of NGINX.
+
+
+Package the NGINX webserver
 
 ```
 cd ~/nginx-eval
 make multi-tenant/share-nginx/linux-cache-nomodsec-release_nonsm
 ```
 
+```
+cd pkg/multi-tenant/share-nginx/linux-cache-nomodsec-release_nonsm
+ls
+0 1 2 3 4 5 6 7
+```
 
-Graphene-crypt (shared NGINX)
------------------------------
+The directory `0` multiplexes a single website, the directory '1' multiplexes
+two websites, and so forth.  All websites use the same
+[keys](#nginx-keys-tls-keys), which `make` copies over to each `conf/`
+(e.g., '0/nginx/conf`).  Each website contacts the same origin server.  Note,
+however, that each website has its own web cache.  The first website
+listens on `*:8440`, the second on `*:8441`, and so forth. 
+
+To benchmark, simultaneously run [ApacheBench](#apache-bench) against each
+website.
+
+
+<a name="multi-tenant-graphene-crypt-shared-nginx"/> Graphene-crypt (shared NGINX)
+----------------------------------------------------------------------------------
 
 ```
 cd ~/nginx-eval
@@ -441,8 +471,8 @@ make multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smc-nsm
 ```
 
 
-Graphene-crypt (shared nothing)
--------------------------------
+<a name="multi-tenant-graphene-crypt-shared-nothing"/> Graphene-crypt (shared nothing)
+--------------------------------------------------------------------------------------
 
 ```
 cd ~/nginx-eval
@@ -450,12 +480,12 @@ make multi-tenant/share-nothing/graphene-cache-nomodsec-release_nextfs-smc-nsm
 ```
 
 
-Web Application Firewall
-========================
+<a name="waf"/> Web Application Firewall
+========================================
 
 
-Linux
------
+<a name="waf-linux"/> Linux
+---------------------------
 
 ```
 cd ~/nginx-eval
@@ -463,16 +493,16 @@ make standalone/linux-standalone-modsec-release_nonsm:
 ```
 
 
-Graphene-crypt
---------------
+<a name="waf-graphene-crypt"/> Graphene-crypt
+---------------------------------------------
 
 ```
 cd ~/nginx-eval
 make standalone/graphene-standalone-modsec-release_nextfs-smc-nsm:
 ```
 
-Graphene Crashes
-================
+<a name="graphene-crashes"/> Graphene Crashes
+=============================================
 
 NGINX edge server:
 
