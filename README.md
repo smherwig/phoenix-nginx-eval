@@ -95,6 +95,13 @@ which issues 10,000 requests from 128 concurrent clients.  `URL` is the url
 served by NGINX, such as `https://192.168.99.10:8443/1k.txt`.
 
 
+`curl` is also a useful a tool for ensuring that the server is up and
+functional:
+
+```
+curl --insecure <URL>
+```
+
 
 Connecting two computers directly with an ethernet cable
 ---------------------------------------------------------
@@ -156,30 +163,43 @@ address and port, edit
 edit `config/origin/linux-standalone-nomodsec-release_origin/nginx.conf` and
 re-package.
 
+To kill the origin, enter:
+
+```
+cat logs/nignx.pid | xargs kill -TERM
+``
+
 
 <a name="single-tenant"/> Single-Tenant
 =======================================
 
+The single-tenant benchmarks evaluate a single caching instance of NGINX,
+hosting a single site.  By default, each edge server listens on `*:8443`.
+
 Linux
 -----
 
-Package NGINX:
+Benchmark NGINX running on vanilla Linux.
+
+
+Package NGINX edge server:
 
 ```
-cd ~/nginx-eval
 make single-tenant/linux-cache-nomodsec-release_nonsm
 ```
 
-Run NGINX:
+Run NGINX edge server:
 
 ```
-cd ~/nginx-eval/pkg/single-tenant/linux-cache-nomodsec-release_nonsm/nginx
+cd pkg/single-tenant/linux-cache-nomodsec-release_nonsm/nginx
 ./sbin/nginx -p $PWD
 ```
 
 
 Linux-keyless
 -------------
+
+Benchmark NGINX running on vanilla Linux using an enclaved keyserver.
 
 Package keyserver:
 
@@ -188,7 +208,7 @@ cd ~/nginx-eval
 cp config/mounts/nginx/conf/server.key ~/src/keyserver/server/
 cd ~/src/makemanifest
 ./make_sgx.py -g ~/src/phoenix -k ~/share/phoenix/enclave-key.pem \
-        -p ~/phoenix/keyserver/deploy/manifest.conf \
+        -p ~/src/keyserver/deploy/manifest.conf \
         -t $PWD -v -o nsmserver
 ```
 
@@ -199,17 +219,17 @@ cd ~/src/makemanifest/nsmserver
 ./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9000
 ```
 
-Package NGINX:
+Package NGINX edge server:
 
 ```
 cd ~/nginx-eval
 make single-tenant/linux-cache-nomodsec-release_nsm
 ```
 
-Run NGINX:
+Run NGINX edge server:
 
 ```
-cd ~/nginx-eval/pkg/single-tenant/linux-cache-nomodsec-release_nsm/nginx
+cd pkg/single-tenant/linux-cache-nomodsec-release_nsm/nginx
 ./sbin/nginx -p $PWD
 ```
 
@@ -221,8 +241,10 @@ Create bd-crypt filesystem image:
 ```
 cd ~/src/fileserver/makefs
 mkdir root
+# root directory cannot be empty
+echo hello > root/hello.txt
 ./makefs.py -v -s 128M -p encpassword fs.crypt.img root 
-cp fs.crypt.xts.img ~/src/fileserver/deploy/fs/srv/
+cp fs.crypt.img ~/src/fileserver/deploy/fs/srv/
 ```
 
 
@@ -245,10 +267,10 @@ Run fileserver:
 ```
 cd ~/src/makemanifest/nextfsserver
 ./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
-        -b bdcrypt:encpassword:aes-256-xts /etc/clash /srv/fs.crypt.xts.img
+        -b bdcrypt:encpassword:aes-256-xts /etc/clash /srv/fs.crypt.img
 ```
 
-Package keyserver:
+Package keyserver (or just use the same keyserver as for Linux-keyless`):
 
 ```
 cd ~/nginx-eval
@@ -266,15 +288,20 @@ cd ~/src/makemanifest/nsmserver
 ./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9000
 ```
 
-
-Package NGINX:
+Setup memfile directory for smc (sm-crypt):
 
 ```
-cd ~/phoenix/phoenix-nginx-eval
+mkdir-p ~/var/phoenix/memfiles/0
+```
+
+Package NGINX edge server:
+
+```
+cd ~/nginx-eval
 make single-tenant/graphene-cache-nomodsec-release_nextfs-smc-nsm
 ```
 
-Run NGINX:
+Run NGINX edge server:
 
 ```
 cd pkg/single-tenant/graphene-cache-nomodsec-release_nextfs-smc-nsm
@@ -290,31 +317,32 @@ Graphene-crypt-exitless
 Graphene-vericrypt
 -------------------
 
-
 Create bd-vericrypt filesystem image:
 
 ```
-# copy over the key material
-cp config/root.crt ~/src/fileserver/deploy/fs/srv/
-cp config/proc.crt ~/src/fileserver/deploy/fs/srv/
-cp config/proc.key ~/src/fileserver/deploy/fs/srv/
-
 cd ~/src/fileserver/makefs
 mkdir root
+# root directory cannot be empty
+echo hello > root/hello.txt
 ./makefs.py -v -s 128M fs.crypt.img root
 cp fs.crypt.img ~/phoenix/fileserver/deploy/fs/srv/
 
 # make the merkle tree file
 ./makemerkle.py -v -k macpassword fs.crypt.img fs.crypt.mt
 cp fs.crypt.mt ~/src/fileserver/deploy/fs/srv
-# root hash: 1845a98c4d4022fb080f8e2f33c60a297856bede1cf93c848c2029957b8e47d2
+# note root hash (may be different):
+#   fa0e822edf87f1a54df1298836a2548c8ca72b560e4e0cec01cc08be0ed6e270
 ```
 
 
-Package the fileserver:
+Package the fileserver (or use the same package as for Graphen-crypt):
 
 ```
-# package
+# copy over the key material
+cp ~/share/phoenix/root.crt ~/src/fileserver/deploy/fs/srv/
+cp ~/share/phoenix/proc.crt ~/src/fileserver/deploy/fs/srv/
+cp ~/share/phoenix/proc.key ~/src/fileserver/deploy/fs/srv/
+
 cd ~/src/makemanifest
 ./make_sgx.py -g ~/src/phoenix -k ~/share/phoenix/enclave-key.pem \
         -p ~/src/fileserver/deploy/manifest.conf \
@@ -326,8 +354,8 @@ Run fileserver
 ```
 cd ~/src/makemanifest/nextfsserver
 ./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
-        -b bdvericrypt:/srv/fs.std.mt:macpassword:1845a98c4d4022fb080f8e2f33c60a297856bede1cf93c848c2029957b8e47d2:encpassword:aes-256-xts \
-        /etc/clash /srv/fs.std.img
+        -b bdvericrypt:/srv/fs.crypt.mt:macpassword:1845a98c4d4022fb080f8e2f33c60a297856bede1cf93c848c2029957b8e47d2:encpassword:aes-256-xts \
+        /etc/clash /srv/fs.crypt.img
 ```
 
 
@@ -335,9 +363,9 @@ Package the smuf (sm-vericrypt) memory server:
 
 ```
 # copy key material
-cp config/root.crt ~/src/memserver/smuf/
-cp config/proc.crt ~/src/memserver/smuf/
-cp config/proc.key ~/src/memserver/smuf/
+cp ~/share/phoenix/root.crt ~/src/memserver/smuf/
+cp ~/share/phoenix/proc.crt ~/src/memserver/smuf/
+cp ~/share/phoenix/proc.key ~/src/memserver/smuf/
 
 # package
 cd ~/src/makemanifest
@@ -354,7 +382,7 @@ cd ~/src/makemanfiest/smufserver
 ./smufserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key -r /memfiles0 /etc/ramones
 ```
 
-Package keyserver:
+Package keyserver (or use the same package as with Linux-keyless):
 
 ```
 cd ~/nginx-eval
@@ -372,17 +400,17 @@ cd ~/src/makemanifest/nsmserver
 ./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9000
 ```
 
-Package NGINX:
+Package NGINX edge server:
 
 ```
 cd ~/nginx-eval
 make single-tenant/graphene-cache-nomodsec-release_nextfs-smuf-nsm
 ```
 
-Run NGINX:
+Run NGINX edge server:
 
 ```
-cd ~/nginx-eval/pkg/single-tenant/graphene-cache-nomodsec-release_nextfs-smuf-nsm/nginx
+cd pkg/single-tenant/graphene-cache-nomodsec-release_nextfs-smuf-nsm
 ./nginx.manifest.sgx -p /nginx
 ```
 
@@ -409,7 +437,7 @@ Graphene-crypt (shared NGINX)
 
 ```
 cd ~/nginx-eval
-make multi-tenant/share-nginx/graphene-cache-nomodsec-debug_nextfs-smc-nsm
+make multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smc-nsm
 ```
 
 
@@ -441,4 +469,27 @@ Graphene-crypt
 ```
 cd ~/nginx-eval
 make standalone/graphene-standalone-modsec-release_nextfs-smc-nsm:
+```
+
+Graphene Crashes
+================
+
+NGINX edge server:
+
+```
+shim_init() in init_mount (-2)
+Saturation error in exit code -2, getting rounded down to 254
+```
+
+This means a kernel server was not setup properly.
+
+
+```
+warn tnt_client_from_config:142 timeserver.rsa_n not in config
+nginx: [alert] unlink() "/memserver0/.accept" failed (38: Function not implemented)
+nginx: [alert] unlink() "/memserver0/ZONE_ONE" failed (38: Function not implemented)
+nginx: [alert] listen() to 0.0.0.0:8443, backlog 511 failed, ignored (22: Invalid argument)
+nginx: [alert] unlink() "/memserver0/.accept" failed (38: Function not implemented)
+assert failed ipc/shim_ipc_nsimpl.h:834 !qstrempty(&NS_LEADER->uri) (value:0)
+Saturation error in exit code -131, getting rounded down to 125
 ```
