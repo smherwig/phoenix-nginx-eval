@@ -701,6 +701,64 @@ cd ~/nginx-eval
 make standalone/graphene-standalone-modsec-release_nextfs-smc-nsm:
 ```
 
+```
+cd pkg/standalone/graphene-standalone-modsec-release_nextfs-smc-nsm/
+```
+
+In the `modesec/main-*rule.conf` files, change the line:
+
+```
+Include "modsec/modsecurity.conf"
+```
+
+to
+
+```
+Include "/fsserver0/modsec/modsecurity.conf"
+```
+
+
+Package the filesystem image:
+
+```
+cd ~/src/fileerver/makefs 
+mkdir root-modsec
+
+cd root-modsec
+cp -R ~/nginx-eval/pkg/standalone/graphene-standalone-modsec-release_nextfs-smc-nsm/nginx/html .
+
+cp -R ~/nginx-eval/pkg/standalone/graphene-standalone-modsec-release_nextfs-smc-nsm/nginx/modsec .
+
+cd ..
+
+./makefs.py -v -s 128M -p encpassword fs.modsec.crypt.img root-modsec
+cp fs.modsec.crypt.img ~/src/fileserver/deploy/fs/srv/
+```
+
+
+Run the fileserver:
+
+```
+cd ~/src/makemanifest/nextfsserver
+./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
+        -b bdcrypt:encpassword:aes-256-xts /etc/clash /srv/fs.modsec.crypt.img
+```
+
+Run the keyserver:
+
+```
+cd ~/src/makemanifest/nsmserver
+./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9000
+```
+
+Run NGINX:
+
+```
+cd ~/nginx-eval/pkg/standalone/graphene-standalone-modsec-release_nextfs-smc-nsm
+./nginx.manifest.sgx -p /nginx
+```
+
+
 <a name="graphene-crashes"/> Graphene Crashes
 =============================================
 
