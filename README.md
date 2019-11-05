@@ -8,42 +8,101 @@ Performance evaluations of NGINX webserver running on the
 Setup
 =====
 
+```
+cd ~
+git clone https://github.com/smherwig/phoenix-nginx-eval nginx-eval
+```
 
-Build NGINX
------------
+
+Build NGINX and Modsecurity
+---------------------------
 
 Download NGINX and create a patched version of NGINX for Phoenix/Graphene:
 
-
 ```
+cd nginx-eval
 bin/get_nginx.sh
-
 ```
 
-Afterwords, you will have two directories: `nginx-1.14.1`, which is the
+Afterwords, there are two new directories: `nginx-1.14.1`, which is the
 vanilla version of NGINX, and `nginx-1.14.1-graphene`, which is the
-patched version.
+patched version.  The pathced version side-steps a few bugs in Graphene-SGX and
+also foces the use of Phoenix's shared memory implementations.  See
+`patch/README` for further details about the patches. 
 
-You then need to create the different base builds.  By base build, we
-mean a different set of options to `./configure`.
+
+Download, build, and install `libmodsecurity.so`.  This library may already be
+installed to `/usr/local/modsecurity`.  We specifically build the library
+without curl support, as Graphene appears to have a bug when handling libcurl's
+(or one of libcurl's dependencie's) init function (that is, the library
+constructor):
 
 ```
-make graphene_bases
+bin/get_modsecurity.sh
 ```
+
+Download the NGINX modsecurity connector plugin:
+
+```
+bin/get_modsecurity_connector.sh
+```
+
+Next, build a few different versions of NGINX; the options to `./configure`
+are different among each version, and some versions build the ModSecurity
+connector.
+
+```
+make bases-all
+```
+
+The different NGINX builds are located under `builds/`.  For instance,
+`builds/graphene-cache-nomodsec-release` is a build of the Graphene-patched
+version of NGINX, configured as a caching server, without ModSecurity, and in
+release mode.
+
 
 NGINX TLS keys
 --------------
-The NGINX TLS cert and private key are `config/mounts/nginx/conf/server.crt`
-and `config/mounts/nginx/conf/server.key`, respectively.
+
+For development purposes, self-signed certificate and private key are located
+at `config/mounts/nginx/conf/server.crt` and
+`config/mounts/nginx/conf/server.key`, respectively.  If desired, inoke
+`bin/make_nginx_self_signed_cert.sh` to generate a new
+certificate and key and copy into `config/mounts/nginx/conf`.
+
+
+ApacheBench
+-----------
+
+We use the ApacheBench to benchmark the NGINX's request latency and throughput.
+macOS should have ApacheBench installed by default (`/usr/sbin/ab`).  On
+Ubuntu, ApacheBench is installed with:
+
+```
+sudo apt-get install apache2-utils
+```
+
+and is located at `/usr/bin/ab`.
+
+
+For benchmarks, we typically run ApacheBench with the command-line:
+
+```
+ab -n 10000 -c 128 <URL>
+```
+
+which issues 10,000 requests from 128 concurrent clients.  `URL` is the url
+served by NGINX, such as `https://192.168.99.10:8443/1k.txt`.
 
 
 
 Connecting two computers directly with an ethernet cable
 ---------------------------------------------------------
-This is based on
-https://superuser.com/questions/842924/directly-connect-macbook-to-linux-desktop-via-ethernet-for-fast-ssh
 
-On the Ubuntu machine (the SGX machine), edit `/etc/network/interfaces` to add
+It may be desireable to run ApacheBench on one computer and NGINX on another,
+and connect the two computers by Ethernet or via an Ethernet switch.
+
+On the NGINX Ubuntu machine, edit `/etc/network/interfaces` to add
 from the `# local hostmachine access interface` comment on down:
 
 ```
@@ -57,10 +116,10 @@ address 192.168.99.10
 netmask 255.255.255.0
 ```
 
-Reboot the machine.  After reboot, the `eno1` physical port will have IP adress
-`192.168.99.10`.
+If ApacheBench is run from another Ubuntu device, edit that system's
+`/etc/network/interfaces`, but with an IP address of `192.168.99.20`.
 
-On you Mac, hookup the Ethernet cable and go to
+If running ApacheBench on macOS, hookup the Ethernet cable and go to
 `System Preferences > Network > Ethernet` and configure as follows:
 
 
@@ -73,33 +132,29 @@ Configure IPv4: Manually
 Search Domains: <blank>
 ```
 
-I also had to turn WiFi off on my Mac. (It might be the case
-that Ethernet and WiFi can co-exist on the Mac, but that that
-Ethernet needs to be ordered higher than the Wifi.)
-
-
-ApacheBench
------------
-
-Macs should have ApacheBench installed by default (`/usr/sbin/ab`).
-We configure NGINX to run a single worker process, and run the following
-
-```
-ab -n 1000 -c 8 https://192.168.99.10:8443/1k.txt
-```
-
-This makes 1000 total requests from 8 concurrent clients (that is `ab` will
-issue 8 requests at the same time).
+I also had to turn WiFi off on my Mac. (It might be the case that Ethernet and
+WiFi can co-exist on the Mac, but that that Ethernet needs to be
+ordered higher than the Wifi.)
 
 
 Origin Server
 -------------
+
+Package and run an origin webserver.  By "package", we mean copying a build and
+overlaying specific configuration form `config/`.  The Makefile targerts handle
+packaging:
 
 ```
 make origin/linux-standalone-nomodsec-release_origin
 cd pkg/origin/linux-standalone-nomodsec-release_origin/nginx
 ./sbin/nginx -p $PWD
 ```
+
+By default, the origin server runs on `localhost:8081.  For a different bind
+address and port, edit
+`pkg/origin/linux-standalone-nomodsec-release_origin/nginx/conf/nginx.conf`, or
+edit `config/origin/linux-standalone-nomodsec-release_origin/nginx.conf` and
+re-package.
 
 
 <a name="single-tenant"/> Single-Tenant
