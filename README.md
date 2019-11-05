@@ -451,15 +451,15 @@ ls
 0 1 2 3 4 5 6 7
 ```
 
-The directory `0` multiplexes a single website, the directory '1' multiplexes
+The directory `0` multiplexes a single website, the directory `1` multiplexes
 two websites, and so forth.  All websites use the same
-[keys](#nginx-keys-tls-keys), which `make` copies over to each `conf/`
-(e.g., '0/nginx/conf`).  Each website contacts the same origin server.  Note,
+[keys](#nginx-tls-keys), which `make` copies over to each `conf/`
+(e.g., `0/nginx/conf`).  Each website contacts the same origin server.  Note,
 however, that each website has its own web cache.  The first website
 listens on `*:8440`, the second on `*:8441`, and so forth. 
 
 To benchmark, simultaneously run [ApacheBench](#apache-bench) against each
-website.
+website (that is, for four websites, run four instances of ApacheBench).
 
 
 <a name="multi-tenant-graphene-crypt-shared-nginx"/> Graphene-crypt (shared NGINX)
