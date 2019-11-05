@@ -494,9 +494,10 @@ each website will have its own fileserver, keyserver, and directory where sm-cry
 stores the share memory files.
 
 Let's go through the case of NGINX multiplexing two websites.  First create two
-file system images, as per, an call one `fs.crypt.img0` and the other
-`fs.crypt.img1`.  Copy these images to the fileserver's mount (we'll have
-the two fileservers mount the same host directory:
+file system images, as per [Graphene-crypt](#single-tenant-graphene-crypt), and
+call one `fs.crypt.img0` and the other `fs.crypt.img1`.  Copy these images to
+the fileserver's mount (we'll have the two fileservers mount the same host
+        directory:
 
 ```
 cp fs.crypt.img0 ~/src/fileserver/deploy/fs/srv/
@@ -507,13 +508,11 @@ Run two instances of the fileserver:
 
 ```
 # Run website 0's fileserver:
-
 cd ~/src/makemanifest/nextfsserver
 ./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
         -b bdcrypt:encpassword:aes-256-xts /etc/clash0 /srv/fs.crypt.img0
 
 # In a different terminal, run website 1's fileserver:
-
 cd ~/src/makemanifest/nextfsserver
 ./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
         -b bdcrypt:encpassword:aes-256-xts /etc/clash1 /srv/fs.crypt.img1
@@ -524,7 +523,6 @@ Next, run a keyserver for each website:
 
 ```
 #Run website 0's keyserver:
-
 cd ~/src/makemanifest/nsmserver
 ./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9000
 
@@ -544,9 +542,69 @@ cd ~/nginx-evalpkg/multi-tenant/share-nginx/graphene-cache-nomodsec-release_next
 <a name="multi-tenant-graphene-crypt-shared-nothing"/> Graphene-crypt (shared nothing)
 --------------------------------------------------------------------------------------
 
+Each webiste has its own instance of NGINX and own fileserver and keyserver:
+
 ```
 cd ~/nginx-eval
 make multi-tenant/share-nothing/graphene-cache-nomodsec-release_nextfs-smc-nsm
+```
+
+```
+cd pkg/multi-tenant/share-nothing/graphene-cache-nomodsec-release_nextfs-smc-nsm/
+ls
+0 1 2 3 4 5
+``` 
+
+Each directory `0` - `5` represents a different website.
+
+
+Let's go through the case of running two websites.  First create two
+file system images, as per [Graphene-crypt](#single-tenant-graphene-crypt), and
+call one `fs.crypt.img0` and the other `fs.crypt.img1`.  Copy these images to
+the fileserver's mount (we'll have the two fileservers mount the same host
+        directory:
+
+```
+cp fs.crypt.img0 ~/src/fileserver/deploy/fs/srv/
+cp fs.crypt.img1 ~/src/fileserver/deploy/fs/srv/
+```
+
+Run two instances of the fileserver:
+
+```
+# Run website 0's fileserver:
+cd ~/src/makemanifest/nextfsserver
+./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
+        -b bdcrypt:encpassword:aes-256-xts /etc/clash0 /srv/fs.crypt.img0
+
+# In a different terminal, run website 1's fileserver:
+cd ~/src/makemanifest/nextfsserver
+./nextfsserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key \
+        -b bdcrypt:encpassword:aes-256-xts /etc/clash1 /srv/fs.crypt.img1
+```
+
+Next, run a keyserver for each website:
+
+```
+#Run website 0's keyserver:
+cd ~/src/makemanifest/nsmserver
+./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9000
+
+# In a different terminal, run website 1's keyserver:
+cd ~/src/makemanifest/nsmserver
+./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9001
+```
+
+Ru twon intances of NGINX:
+
+```
+# Run website 0's NGINX:
+cd ~/nginx-evalpkg/multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smc-nsm/0
+./nginx.manifest.sgx -p /nginx
+
+# Run website 1's NGINX:
+cd ~/nginx-evalpkg/multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smc-nsm/1
+./nginx.manifest.sgx -p /nginx
 ```
 
 
