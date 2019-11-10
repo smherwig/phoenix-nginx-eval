@@ -157,7 +157,7 @@ WiFi can co-exist on the Mac, but that Ethernet needs to be ordered
 higher than the Wifi.)
 
 
-<a name="graphene-crashes"/> Graphene Bugs
+<a name="graphene-bugs"/> Graphene Bugs
 ==========================================
 
 CTRL-C
@@ -279,10 +279,23 @@ cd ~/nginx-eval
 make single-tenant/linux-cache-nomodsec-release_nsm
 ```
 
-Run NGINX edge server:
+Goto the package directory:
 
 ```
 cd pkg/single-tenant/linux-cache-nomodsec-release_nsm/nginx
+```
+
+Ensure that `conf/nginx.conf`'s `ssl_engine` directive points to the user's
+installation of `nsm-engine.so`.
+
+```
+# change "smherwig" to correct user
+ssl_engine /home/smherwig/lib/nsm-engine.so;
+```
+
+Run NGINX edge server:
+
+```
 ./sbin/nginx -p $PWD
 ```
 
@@ -357,10 +370,23 @@ cd ~/nginx-eval
 make single-tenant/graphene-cache-nomodsec-release_nextfs-smc-nsm
 ```
 
-Run NGINX edge server:
+Go to the package directory:
 
 ```
 cd pkg/single-tenant/graphene-cache-nomodsec-release_nextfs-smc-nsm
+```
+
+Ensure that `conf/nginx.conf`'s `ssl_engine` directive points to the user's
+installation of `nsm-engine.so`.
+
+```
+# change "smherwig" to correct user
+ssl_engine /home/smherwig/lib/nsm-engine.so;
+```
+
+Run NGINX edge server:
+
+```
 ./nginx.manifest.sgx -p /nginx
 ```
 
@@ -477,10 +503,23 @@ cd ~/nginx-eval
 make single-tenant/graphene-cache-nomodsec-release_nextfs-smuf-nsm
 ```
 
-Run NGINX edge server:
+Go to the package directory:
 
 ```
 cd pkg/single-tenant/graphene-cache-nomodsec-release_nextfs-smuf-nsm
+```
+
+Ensure that `conf/nginx.conf`'s `ssl_engine` directive points to the user's
+installation of `nsm-engine.so`.
+
+```
+# change "smherwig" to correct user
+ssl_engine /home/smherwig/lib/nsm-engine.so;
+```
+
+Run NGINX edge server:
+
+```
 ./nginx.manifest.sgx -p /nginx
 ```
 
@@ -595,10 +634,23 @@ Prepare the sm-crypt shared memory directories:
 reset_phoenix_memfiles.sh
 ```
 
-Run NGINX:
+Go to the package directory:
 
 ```
 cd ~/nginx-evalpkg/multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smc-nsm/1
+```
+
+Ensure that `conf/nginx.conf`'s `ssl_engine` directive points to the user's
+installation of `nsm-engine.so`.
+
+```
+# change "smherwig" to correct user
+ssl_engine /home/smherwig/lib/nsm-engine.so;
+```
+
+Run NGINX:
+
+```
 ./nginx.manifest.sgx -p /nginx
 ```
 
@@ -663,6 +715,20 @@ Prepare the sm-crypt shared memory directories:
 
 ```
 reset_phoenix_memfiles.sh
+```
+
+Go to the NGINX package directory:
+
+```
+cd ~/nginx-eval/pkg/multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smc-nsm
+```
+
+Ensure that `0/nginx/conf/nginx.conf`'s and `1/nginx/conf/nginx.conf`'s
+`ssl_engine` directive points to the user's installation of `nsm-engine.so`.
+
+```
+# change "smherwig" to correct user
+ssl_engine /home/smherwig/lib/nsm-engine.so;
 ```
 
 Run two instances of NGINX:
@@ -832,9 +898,22 @@ cd ~/src/makemanifest/nsmserver
 ./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9000
 ```
 
-Run NGINX:
+Goto the NGINX package directory:
 
 ```
 cd ~/nginx-eval/pkg/standalone/graphene-standalone-modsec-release_nextfs-smc-nsm
+```
+
+Ensure that `nginx/conf/nginx.conf`'s 
+`ssl_engine` directive points to the user's installation of `nsm-engine.so`.
+
+```
+# change "smherwig" to correct user
+ssl_engine /home/smherwig/lib/nsm-engine.so;
+```
+
+Run NGINX:
+
+```
 ./nginx.manifest.sgx -p /nginx
 ``` 
