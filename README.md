@@ -157,8 +157,44 @@ WiFi can co-exist on the Mac, but that Ethernet needs to be ordered
 higher than the Wifi.)
 
 
-Origin Server
--------------
+<a name="graphene-crashes"/> Graphene Bugs
+==========================================
+
+CTRL-C
+------
+
+Graphene is often unresponsive to `CTRL-C`, especially when the Graphene
+application is multi-process.  In order to kill all instances of Graphene,
+enter:
+
+
+Racy Conditions
+---------------
+
+For some shared resources, such as POSIX semaphores, NGINX implements a leader
+election algorithm.  The implementation of this algorithm is very buggy and
+often causes a crash the first time an process forks.  This is only an issue
+with multiprocess applications (e.g., NGINX, not the kernel servers), and  will
+appear as the standard error log line:
+
+```
+assert failed ipc/shim_ipc_nsimpl.h:834 !qstrempty(&NS_LEADER->uri) (value:0)
+```
+
+
+
+NGINX edge server:
+
+```
+shim_init() in init_mount (-2)
+Saturation error in exit code -2, getting rounded down to 254
+```
+
+This means a kernel server was not setup properly.
+
+
+<a name="origin-server"/> Origin Server
+---------------------------------------
 
 Package and run an origin webserver.  By "package", we mean copying a build and
 overlaying specific configuration form `config/`.  The Makefile targets handle
@@ -187,7 +223,9 @@ cat logs/nignx.pid | xargs kill -TERM
 =======================================
 
 The single-tenant benchmarks evaluate a single caching instance of NGINX,
-hosting a single site.  By default, the NGINX instance listens on `*:8443`.
+hosting a single site and communicating to the backend [origin
+server](#origin-server).  By default, the NGINX instance listens on
+`*:8443`.  
 
 Linux
 -----
@@ -249,6 +287,9 @@ cd pkg/single-tenant/linux-cache-nomodsec-release_nsm/nginx
 <a name="single-tenant-graphene-crypt"/> Graphene-crypt
 -------------------------------------------------------
 
+Benchmark NGINX runnning on Graphene with a bd-crypt backed filesystem, the
+sm-crypt shared memory implementation, and an enclaved keyserver.
+
 Create bd-crypt filesystem image:
 
 ```
@@ -283,11 +324,11 @@ cd ~/src/makemanifest/nextfsserver
         -b bdcrypt:encpassword:aes-256-xts /etc/clash /srv/fs.crypt.img
 ```
 
-Package keyserver (or just use the same keyserver as for Linux-keyless`):
+Package keyserver (or just use the same keyserver as for
+[Linux-keyless](#single-tenant-linux-keyless).
 
 ```
-cd ~/nginx-eval
-cp config/mounts/nginx/conf/server.key ~/src/keyserver/server/
+cp ~/nginx-eval/config/mounts/nginx/conf/server.key ~/src/keyserver/server/
 cd ~/src/makemanifest
 ./make_sgx.py -g ~/src/phoenix -k ~/share/phoenix/enclave-key.pem \
         -p ~/phoenix/keyserver/deploy/manifest.conf \
@@ -304,7 +345,7 @@ cd ~/src/makemanifest/nsmserver
 Setup memfile directory for smc (sm-crypt):
 
 ```
-mkdir-p ~/var/phoenix/memfiles/0
+reset_phoenix_memfiles.sh
 ```
 
 Package NGINX edge server:
@@ -324,6 +365,10 @@ cd pkg/single-tenant/graphene-cache-nomodsec-release_nextfs-smc-nsm
 
 <a name="single-tenant-graphene-crypt-exitless"/> Graphene-crypt-exitless
 -------------------------------------------------------------------------
+
+Benchmark NGINX runnning on Graphene with a bd-crypt backed filesystem, the
+sm-crypt shared memory implementation, and an enclaved keyserver.  All enclaved
+processes use exitless system calls.
 
 In the following manifests, specify the option `exitless` to the `THREADS`directive:
 
@@ -357,7 +402,8 @@ cp fs.crypt.mt ~/src/fileserver/deploy/fs/srv
 ```
 
 
-Package the fileserver (or use the same package as for Graphen-crypt):
+Package the fileserver (or use the same package as for
+[Graphene-crypt](#single-tenant-graphene-crypt)).
 
 ```
 # copy over the key material
@@ -399,7 +445,7 @@ cd ~/src/makemanifest
 Run memory server:
 
 ```
-# TODO: reset memdir
+reset_phoenix_memfiles.sh
 cd ~/src/makemanfiest/smufserver
 ./smufserver.manifest.sgx -Z /srv/root.crt /srv/proc.crt /srv/proc.key -r /memfiles0 /etc/ramones
 ```
@@ -503,7 +549,7 @@ ls
 The directories `0` - `5` are the same as for
 [Linux (shared NGINX)](#multi-tenant-linux-shared-nginx).  Note, however, that
 each website will have its own fileserver, keyserver, and directory where sm-crypt
-stores the share memory files.
+stores the shared memory files.
 
 Let's go through the case of NGINX multiplexing two websites.  First create two
 file system images, as per [Graphene-crypt](#single-tenant-graphene-crypt), and
@@ -541,6 +587,12 @@ cd ~/src/makemanifest/nsmserver
 ./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9001
 ```
 
+Prepare the sm-crypt shared memory directories:
+
+```
+reset_phoenix_memfiles.sh
+```
+
 Run NGINX:
 
 ```
@@ -552,7 +604,7 @@ cd ~/nginx-evalpkg/multi-tenant/share-nginx/graphene-cache-nomodsec-release_next
 <a name="multi-tenant-graphene-crypt-shared-nothing"/> Graphene-crypt (shared nothing)
 --------------------------------------------------------------------------------------
 
-Each webiste has its own instance of NGINX and own fileserver and keyserver:
+Each website has its own instance of NGINX and own fileserver and keyserver:
 
 ```
 cd ~/nginx-eval
@@ -605,15 +657,21 @@ cd ~/src/makemanifest/nsmserver
 ./nsmserver.manifest.sgx -r /srv tcp://127.0.0.1:9001
 ```
 
-Run two intances of NGINX:
+Prepare the sm-crypt shared memory directories:
+
+```
+reset_phoenix_memfiles.sh
+```
+
+Run two instances of NGINX:
 
 ```
 # Run website 0's NGINX:
-cd ~/nginx-evalpkg/multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smc-nsm/0
+cd ~/nginx-eval/pkg/multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smc-nsm/0
 ./nginx.manifest.sgx -p /nginx
 
 # Run website 1's NGINX:
-cd ~/nginx-evalpkg/multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smc-nsm/1
+cd ~/nginx-eval/pkg/multi-tenant/share-nginx/graphene-cache-nomodsec-release_nextfs-smc-nsm/1
 ./nginx.manifest.sgx -p /nginx
 ```
 
@@ -621,24 +679,30 @@ cd ~/nginx-evalpkg/multi-tenant/share-nginx/graphene-cache-nomodsec-release_next
 <a name="waf"/> Web Application Firewall
 ========================================
 
+These benchmarks evaluate the performance of a standlone instance of NGINX
+(that is a non-caching version) running the ModSecurity Web Application
+Firewall.  An origin server is not needed.
+
 
 <a name="waf-linux"/> Linux
 ---------------------------
 
-Package the NGINX:
+Benchmark NGINX running on vanilla Linux with ModSecurity.
+
+Package NGINX:
 
 ```
 cd ~/nginx-eval
 make standalone/linux-standalone-modsec-release_nonsm:
 ```
 
-Adjust the number of modsec rules:
+Go to the package directory:
 
 ```
 cd pkg/standalone/linux-standalone-modsec-release_nonsm/nginx
 ```
 
-At the bottom of `conf/nginx.conf` is a line:
+Adjust the number of modsec rules in `conf/nginx.conf`:
 
 ```
 modsecurity_rules_file modsec/main-1rule.conf;
@@ -663,7 +727,7 @@ Run NGINX:
 ./sbin/nginx -p $PWD
 ```
 
-To test that the `main-10000rule.conf` is active, ensure that a query with a
+To test that the `main-1rule.conf` is active, ensure that a query with a
 blacklisted substring returns `403 Forbidden`:
 
 ```
@@ -685,25 +749,31 @@ curl --insecure https://127.0.0.1:8443/1k.txt
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghij
 ```
 
-
-To run NGINX without ModSecurity, comment out the following lines in
-`conf/nginx.conf`:
+If, for comparison, you wish to run NGINx without ModSecurity,
+comment out the following lines in `conf/nginx.conf`:
 
 ```
 load_module modules/ngx_http_modsecurity_module.so
 
 modsecurity on;
-modsecurity_rules_file modsec/main-10000rule.conf
+modsecurity_rules_file modsec/main-1rule.conf
 ```
 
 
 <a name="waf-graphene-crypt"/> Graphene-crypt
 ---------------------------------------------
 
+Benchmark NGINX with ModSecurity enabled running on Graphene with a bd-crypt
+backed filesystem, sm-crypt shared memory, and an enclaved keyserver.
+
+Package NGINX:
+
 ```
 cd ~/nginx-eval
 make standalone/graphene-standalone-modsec-release_nextfs-smc-nsm:
 ```
+
+Go to the package directory:
 
 ```
 cd pkg/standalone/graphene-standalone-modsec-release_nextfs-smc-nsm/
@@ -721,11 +791,10 @@ to
 Include "/fsserver0/modsec/modsecurity.conf"
 ```
 
-
-Package the filesystem image:
+Create the filesystem image:
 
 ```
-cd ~/src/fileerver/makefs 
+cd ~/src/fileserver/makefs 
 mkdir root-modsec
 
 cd root-modsec
@@ -748,6 +817,12 @@ cd ~/src/makemanifest/nextfsserver
         -b bdcrypt:encpassword:aes-256-xts /etc/clash /srv/fs.modsec.crypt.img
 ```
 
+Prepare the sm-crypt directory:
+
+```
+reset_phoenix_memfiles.sh
+```
+
 Run the keyserver:
 
 ```
@@ -760,28 +835,4 @@ Run NGINX:
 ```
 cd ~/nginx-eval/pkg/standalone/graphene-standalone-modsec-release_nextfs-smc-nsm
 ./nginx.manifest.sgx -p /nginx
-```
-
-
-<a name="graphene-crashes"/> Graphene Crashes
-=============================================
-
-NGINX edge server:
-
-```
-shim_init() in init_mount (-2)
-Saturation error in exit code -2, getting rounded down to 254
-```
-
-This means a kernel server was not setup properly.
-
-
-```
-warn tnt_client_from_config:142 timeserver.rsa_n not in config
-nginx: [alert] unlink() "/memserver0/.accept" failed (38: Function not implemented)
-nginx: [alert] unlink() "/memserver0/ZONE_ONE" failed (38: Function not implemented)
-nginx: [alert] listen() to 0.0.0.0:8443, backlog 511 failed, ignored (22: Invalid argument)
-nginx: [alert] unlink() "/memserver0/.accept" failed (38: Function not implemented)
-assert failed ipc/shim_ipc_nsimpl.h:834 !qstrempty(&NS_LEADER->uri) (value:0)
-Saturation error in exit code -131, getting rounded down to 125
-```
+``` 
