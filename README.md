@@ -24,19 +24,19 @@ cd nginx-eval
 bin/get_nginx.sh
 ```
 
-Afterwords, there are two new directories: `nginx-1.14.1`, which is the
-vanilla version of NGINX, and `nginx-1.14.1-graphene`, which is the
-patched version.  The patched version side-steps a few bugs in Graphene-SGX and
-also forces the use of Phoenix's shared memory implementations.  An important
-result of the patch is that NGINX only accepts HTTPS requests.
-See `patch/README` for further details.
+Afterwords, there are two new new directories: `nginx-1.14.1`, which is the
+vanilla version of NGINX, and `nginx-1.14.1-graphene`, which is the patched
+version.  The patched version side-steps a few bugs in Graphene-SGX and also
+forces the use of Phoenix's shared memory implementations.  An important result
+of the patch is that NGINX only accepts HTTPS requests.  See `patch/README` for
+further details.
 
 
 Download, build, and install `libmodsecurity.so`.  This library may already be
 installed to `/usr/local/modsecurity`.  We specifically build the library
 without curl support, as Graphene appears to have a bug when handling libcurl's
-(or one of libcurl's dependencie's) init function (that is, the library
-constructor):
+library constructor (or the library constructor of one of libcurl's
+dependencies).
 
 ```
 bin/get_modsecurity.sh
@@ -48,8 +48,8 @@ Download the NGINX modsecurity connector plugin:
 bin/get_modsecurity_connector.sh
 ```
 
-Next, build a few different versions of NGINX; the options to `./configure`
-are different among each version, and some versions build the ModSecurity
+Next, build several versions of NGINX; the options to `./configure`
+differ among the versions, and some versions build the ModSecurity
 connector.
 
 ```
@@ -65,17 +65,28 @@ release mode.
 <a name="nginx-tls-keys"/> NGINX TLS keys
 -----------------------------------------
 
-For development purposes, self-signed certificate and private key are located
+For development purposes, a self-signed certificate and private key are located
 at `config/mounts/nginx/conf/server.crt` and
-`config/mounts/nginx/conf/server.key`, respectively.  If desired, inoke
+`config/mounts/nginx/conf/server.key`, respectively.  If desired, invoke
 `bin/make_nginx_self_signed_cert.sh` to generate a new
-certificate and key and copy into `config/mounts/nginx/conf`.
+certificate and key, and then copy these into `config/mounts/nginx/conf`.
+
+
+<a name="web-content" /> Web Content
+------------------------------------
+
+The NGINX servers are configured to serve the following files:
+
+- `1k.txt`: a 1024-byte ASCII text file
+- `10k.txt`: a 10240-byte ASCII text file
+- `100k.txt`: a 102400-byte ASCII text file
+- `1m.txt`: a 1048576-byte ASCII text file
 
 
 <a name="apache-bench"/> ApacheBench
 ------------------------------------
 
-We use ApacheBench to benchmark the NGINX's request latency and throughput.
+We use ApacheBench to benchmark NGINX's request latency and throughput.
 macOS should have ApacheBench installed by default (`/usr/sbin/ab`).  On
 Ubuntu, ApacheBench is installed with:
 
@@ -93,7 +104,8 @@ ab -n 10000 -c 128 <URL>
 ```
 
 which issues 10,000 requests from 128 concurrent clients.  `URL` is the url
-served by NGINX, such as `https://192.168.99.10:8443/1k.txt`.
+served by NGINX, such as `https://192.168.99.10:8443/1k.txt`, or
+`https://127.0.0.1:8443/1k.txt`.
 
 
 `curl` is also a useful a tool for ensuring that the server is up and
@@ -124,8 +136,8 @@ address 192.168.99.10
 netmask 255.255.255.0
 ```
 
-If ApacheBench is run from another Ubuntu device, edit that system's
-`/etc/network/interfaces`, but with an IP address of `192.168.99.20`.
+If ApacheBench is run from another Ubuntu device, then likewise edit that
+system's `/etc/network/interfaces`, but with an IP address of `192.168.99.20`.
 
 If running ApacheBench on macOS, hookup the Ethernet cable and go to
 `System Preferences > Network > Ethernet` and configure as follows:
@@ -140,9 +152,9 @@ Configure IPv4: Manually
 Search Domains: <blank>
 ```
 
-I also had to turn WiFi off on my Mac. (It might be the case that Ethernet and
-WiFi can co-exist on the Mac, but that that Ethernet needs to be
-ordered higher than the Wifi.)
+I also had to turn off WiFi on my Mac. (It might be the case that Ethernet and
+WiFi can co-exist on the Mac, but that Ethernet needs to be ordered
+higher than the Wifi.)
 
 
 Origin Server
@@ -175,7 +187,7 @@ cat logs/nignx.pid | xargs kill -TERM
 =======================================
 
 The single-tenant benchmarks evaluate a single caching instance of NGINX,
-hosting a single site.  By default, each edge server listens on `*:8443`.
+hosting a single site.  By default, the NGINX instance listens on `*:8443`.
 
 Linux
 -----
