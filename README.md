@@ -185,7 +185,7 @@ assert failed ipc/shim_ipc_nsimpl.h:834 !qstrempty(&NS_LEADER->uri) (value:0)
 `MOUNT` Configuration Errors
 ----------------------------
 
-A message to stderr of
+A message to stderr of:
 
 ```
 shim_init() in init_mount (-2)
