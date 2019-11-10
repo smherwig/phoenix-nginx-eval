@@ -182,15 +182,17 @@ assert failed ipc/shim_ipc_nsimpl.h:834 !qstrempty(&NS_LEADER->uri) (value:0)
 ```
 
 
+`MOUNT` Configuration Errors
+----------------------------
 
-NGINX edge server:
+A message to stderr of
 
 ```
 shim_init() in init_mount (-2)
-Saturation error in exit code -2, getting rounded down to 254
 ```
 
-This means a kernel server was not setup properly.
+usually indicates that the `MOUNT` directive in `manifest.conf` for a kernel
+server was not properly specified.
 
 
 <a name="origin-server"/> Origin Server
