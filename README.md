@@ -419,8 +419,8 @@ cd ~/src/fileserver/makefs
 mkdir root
 # root directory cannot be empty
 echo hello > root/hello.txt
-./makefs.py -v -s 128M fs.crypt.img root
-cp fs.crypt.img ~/phoenix/fileserver/deploy/fs/srv/
+./makefs.py -v -s 128M -p encpassword fs.crypt.img root
+cp fs.crypt.img ~/src/fileserver/deploy/fs/srv/
 
 # make the merkle tree file
 ./makemerkle.py -v -k macpassword fs.crypt.img fs.crypt.mt
